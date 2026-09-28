@@ -1,18 +1,22 @@
-import React, { useEffect, useState } from 'react'
-import { productData } from '../../../../static/data'
+import React, { useEffect, useMemo } from 'react'
+import { useSelector } from 'react-redux'
 import ProductCard from '../ProductCard/ProductCard'
 
 const BestDeals = () => {
-  const [data, setData] = useState([])
+  const { allProducts } = useSelector((state) => state.products)
+
+  const data = useMemo(() => {
+    const products = allProducts || []
+
+    // Highest discount first, so "Best Deals" reflects real shop inventory.
+    return [...products]
+      .sort((a, b) => discount(b) - discount(a))
+      .slice(0, 5)
+  }, [allProducts])
 
   useEffect(() => {
-    if (productData?.length) {
-      // sort by total_sell descending and take first 5
-      const sorted = [...productData].sort((a, b) => b.total_sell - a.total_sell)
-      const firstFive = sorted.slice(0, 5)
-      setData(firstFive)
-    }
-  }, []) // ✅ Run only once on mount
+    window.scrollTo(0, 0)
+  }, [])
 
   return (
     <section className="my-10 px-4 md:px-8 lg:px-16">
@@ -23,11 +27,18 @@ const BestDeals = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
         {data?.map((item, index) => (
-          <ProductCard data={item} key={item.id || index} />
+          <ProductCard data={item} key={item._id || index} />
         ))}
       </div>
     </section>
   )
+}
+
+function discount(product) {
+  const original = product?.originalPrice ?? product?.price ?? 0
+  const current = product?.discountPrice ?? product?.discount_price ?? 0
+
+  return original > 0 ? (original - current) / original : 0
 }
 
 export default BestDeals 

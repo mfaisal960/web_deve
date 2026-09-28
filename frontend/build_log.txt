@@ -1,0 +1,35 @@
+
+> frontend@0.0.0 build
+> vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+
+<--- Last few GCs --->
+
+[16200:000001DD049E0000]     2951 ms: Scavenge 72.5 (105.7) -> 50.1 (111.2) MB, pooled: 0 MB, 10.22 / 0.00 ms  (average mu = 0.993, current mu = 0.994) allocation failure; 
+[16200:000001DD049E0000]     3370 ms: Scavenge 80.5 (113.4) -> 63.6 (117.9) MB, pooled: 0 MB, 22.80 / 0.02 ms  (average mu = 0.993, current mu = 0.994) task; 
+[16200:000001DD049E0000]     3589 ms: Scavenge 89.3 (122.7) -> 79.1 (134.2) MB, pooled: 1 MB, 58.10 / 0.03 ms  (average mu = 0.993, current mu = 0.994) allocation failure; 
+
+FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF67557C36F 
+ 2: 00007FF6761C4D77 
+ 3: 00007FF675FC5467 
+ 4: 00007FF675F5DE8B 
+ 5: 00007FF675F358DE 
+ 6: 00007FF675FC7F02 
+ 7: 00007FF675FC6EB7 
+ 8: 00007FF675FD7E22 
+ 9: 00007FF675FD794B 
+10: 00007FF67745DAED 
+11: 00007FF675FC2F30 
+12: 00007FF675FDD7BA 
+13: 00007FF675FE9618 
+14: 00007FF6760044AB 
+15: 00007FF6761E5795 
+16: 00007FF6753AD2D4 
+17: 00007FF6753ACDA3 
+18: 00007FF6755B9FFB 
+19: 000001DD3C88F77E 

@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams } from "react-router-dom";
 import { getAllProductsShop } from "../../redux/actions/product";
 import ProductCard from "../Route/Hero/ProductCard/ProductCard";
+import { productData as demoProducts } from "../../static/data";
 
 const Ratings = ({ rating }) => {
   const filledStars = Math.round(rating || 0);
@@ -23,6 +24,14 @@ const ShopProfileData = ({ isOwner }) => {
 
   const { id } = useParams();
   const dispatch = useDispatch();
+  const isDatabaseId = /^[a-f\d]{24}$/i.test(id || "");
+  const shopProducts = isDatabaseId
+    ? products || []
+    : demoProducts.filter(
+        (product) =>
+          String(product.shop?._id || product.shop?.id || product.shopId) ===
+          String(id)
+      );
 
   const [active, setActive] = useState(1);
 
@@ -30,11 +39,13 @@ const ShopProfileData = ({ isOwner }) => {
     if (!id) {
       return;
     }
-    dispatch(getAllProductsShop(id));
-  }, [dispatch, id]);
+    if (isDatabaseId) {
+      dispatch(getAllProductsShop(id));
+    }
+  }, [dispatch, id, isDatabaseId]);
 
   const allReviews =
-    products?.map((product) => product.reviews || []).flat() || [];
+    shopProducts.flatMap((product) => product.reviews || []);
 
   return (
     <div className="w-full bg-white rounded-xl overflow-hidden">
@@ -134,12 +145,12 @@ const ShopProfileData = ({ isOwner }) => {
       {active === 1 && (
         <div className="px-5 sm:px-6 lg:px-7 py-6">
 
-          {products && products.length > 0 ? (
+          {shopProducts.length > 0 ? (
             <div
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3
                 xl:grid-cols-4 gap-5 lg:gap-6"
             >
-              {products.map((item, index) => (
+              {shopProducts.map((item, index) => (
                 <ProductCard
                   data={item}
                   key={item._id || index}

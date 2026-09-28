@@ -3,6 +3,7 @@ import { createReducer } from "@reduxjs/toolkit";
 const initialState = {
   loading: false,
   orders: [],
+  order: null,
   error: null,
 };
 
@@ -20,5 +21,15 @@ export const orderReducer = createReducer(initialState, (builder) => {
       state.loading = false;
       state.error = action.payload;
       state.orders = [];
+    })
+    .addCase("OrderDetailsSuccess", (state, action) => {
+      state.loading = false;
+      state.order = action.payload;
+      state.error = null;
+    })
+    .addCase("OrderDetailsFail", (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+      state.order = null;
     });
 });

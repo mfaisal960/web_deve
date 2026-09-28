@@ -1,206 +1,282 @@
-import React, { useState } from "react";
+
+import React, { useEffect, useState } from "react";
 import {
-  AiOutlineMessage,
-  AiOutlineHeart,
   AiFillHeart,
+  AiOutlineHeart,
+  AiOutlineMessage,
   AiOutlineShoppingCart,
 } from "react-icons/ai";
 import { RxCross1 } from "react-icons/rx";
+import { Link } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-toastify";
+import { addTocart } from "../../../../redux/actions/cart";
+import {
+  addToWishlist,
+  removeFromWishlist,
+} from "../../../../redux/actions/wishlist";
 
-const ProductDetailCart = ({ setOpen, data }) => {
+const ProductDetailsCard = ({ setOpen, data }) => {
+  const { cart } = useSelector((state) => state.cart);
+  const { wishlist } = useSelector((state) => state.wishlist);
+  const dispatch = useDispatch();
+
   const [count, setCount] = useState(1);
-  const [click, setClick] = useState(false);
+  const isInWishlist = Boolean(
+    (data?._id || data?.id) &&
+      wishlist?.some((item) => (item._id || item.id) === (data._id || data.id))
+  );
 
-  const handleMessageSubmit = () => {
-    alert(`Message sent to ${data?.shop?.name}`);
-  };
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
-  const decreaseCount = () => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [setOpen]);
+
+  const discount =
+    data.discount_price ?? data.discountPrice ?? data.price ?? 0;
+  const original = data.price ?? data.originalPrice ?? 0;
+
+  const handleMessageSubmit = () => {};
+
+  const decrementCount = () => {
     if (count > 1) {
       setCount(count - 1);
     }
   };
 
-  const increaseCount = () => {
-    if (count < data?.stock) {
-      setCount(count + 1);
+  const incrementCount = () => {
+    setCount(count + 1);
+  };
+
+  const addToCartHandler = (id) => {
+    const isItemExists = cart && cart.find((i) => (i._id || i.id) === id);
+
+    if (isItemExists) {
+      toast.error("Item already in cart!");
+    } else {
+      if (data.stock < count) {
+        toast.error("Product stock limited!");
+      } else {
+        const cartData = { ...data, qty: count };
+        dispatch(addTocart(cartData));
+        toast.success("Item added to cart successfully!");
+      }
     }
   };
 
-  const totalPrice = (data?.discount_price || data?.price) * count;
+  const removeFromWishlistHandler = (data) => {
+    dispatch(removeFromWishlist(data));
+  };
+
+  const addToWishlistHandler = (data) => {
+    dispatch(addToWishlist(data));
+  };
 
   return (
-    <>
-      {data && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+    <div className="bg-white">
+      {data ? (
+        <div
+          className="fixed inset-0 z-40 overflow-y-auto bg-black/50 backdrop-blur-sm"
+          onClick={() => setOpen(false)}
+        >
+          <div className="flex min-h-full items-start justify-center px-4 pb-10 pt-24">
           {/* Modal */}
-          <div className="relative w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+          <div
+            className="relative w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6 800px:h-[75vh] 800px:w-[65%]"
+            onClick={(e) => e.stopPropagation()}
+          >
             
             {/* Close Button */}
             <button
+              type="button"
               onClick={() => setOpen(false)}
-              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-gray-100 hover:bg-red-100 flex items-center justify-center transition"
+              className="absolute right-4 top-4 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:bg-red-50 hover:text-red-500"
             >
-              <RxCross1 size={22} className="text-gray-700 hover:text-red-500" />
+              <RxCross1 size={20} />
             </button>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6 md:p-8">
+            {/* Main Content */}
+            <div className="block w-full gap-8 800px:flex">
               
-              {/* LEFT SIDE */}
-              <div className="space-y-6">
+              {/* Left Side */}
+              <div className="w-full 800px:w-1/2">
+                
                 {/* Product Image */}
-                <div className="bg-gray-50 rounded-2xl p-4 shadow-sm">
+                <div className="overflow-hidden rounded-xl bg-gray-50">
                   <img
-                    src={data?.image_Url?.[0]?.url || data?.image}
-                    alt={data?.name}
-                    className="w-full h-[300px] sm:h-[400px] object-contain rounded-xl"
+                    src={
+                      data.images?.[0]?.url ||
+                      data.image_Url?.[0]?.url ||
+                      data.image ||
+                      "https://dummyimage.com/150x150/cccccc/999999?text=No+Image"
+                    }
+                    alt={data.name}
+                    className="h-[300px] w-full object-contain p-5 transition-transform duration-300 hover:scale-105 sm:h-[350px]"
+                    onError={(e) => {
+                      e.target.src =
+                        "https://dummyimage.com/150x150/cccccc/999999?text=No+Image";
+                    }}
                   />
                 </div>
 
-                {/* Shop Info */}
-                <div className="flex items-center gap-4 p-4 border rounded-2xl bg-gray-50">
-                  <img
-                    src={data?.shop?.shop_avatar?.url}
-                    alt={data?.shop?.name}
-                    className="w-14 h-14 rounded-full object-cover border"
-                  />
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-800">
-                      {data?.shop?.name}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      Shop ID: {data?.shop?.id}
-                    </p>
-                  </div>
+                {/* Shop Information */}
+                <div className="mt-5 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                  <Link
+                    to={`/shop/preview/${data.shop?._id || data.shopId || data.shop?.id}`}
+                    className="flex items-center"
+                  >
+                    <img
+                      src={
+                        data.shop?.shop_avatar?.url ||
+                        data.images?.[0]?.url ||
+                        data.image_Url?.[0]?.url ||
+                        data.image ||
+                        "https://dummyimage.com/150x150/cccccc/999999?text=No+Image"
+                      }
+                      alt={data.shop?.name}
+                      className="mr-3 h-12 w-12 rounded-full border-2 border-white object-cover shadow-sm"
+                    />
+
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-800 transition-colors hover:text-red-500">
+                        {data.shop?.name || "Shop"}
+                      </h3>
+
+                      <h5 className="mt-1 text-sm text-gray-500">
+                        {data?.ratings} Ratings
+                      </h5>
+                    </div>
+                  </Link>
                 </div>
 
-                {/* Send Message Button */}
+                {/* Message Button */}
                 <button
+                  type="button"
+                  className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-gray-900 px-5 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-gray-800 active:scale-[0.98]"
                   onClick={handleMessageSubmit}
-                  className="w-full sm:w-auto px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition shadow-md"
                 >
-                  Send Message <AiOutlineMessage size={20} />
+                  <span className="flex items-center gap-2">
+                    Send Message
+                    <AiOutlineMessage size={20} />
+                  </span>
                 </button>
+
+                {/* Stock */}
+                <h5 className="mt-5 text-sm font-semibold text-red-500">
+                  {data.stock ?? data.sold_out ?? 0} sold
+                </h5>
               </div>
 
-              {/* RIGHT SIDE */}
-              <div className="flex flex-col justify-between space-y-6">
+              {/* Right Side */}
+              <div className="w-full pt-6 800px:w-1/2 800px:pl-3">
                 
-                {/* Product Info */}
-                <div>
-                  <span className="inline-block px-3 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700 rounded-full mb-3">
-                    {data?.category}
-                  </span>
+                {/* Product Title */}
+                <h1 className="pr-10 text-2xl font-bold leading-tight text-gray-900">
+                  {data.name}
+                </h1>
 
-                  <h1 className="text-2xl md:text-4xl font-bold text-gray-900 leading-tight">
-                    {data?.name}
-                  </h1>
+                {/* Description */}
+                <p className="mt-4 text-sm leading-6 text-gray-500">
+                  {data.description}
+                </p>
 
-                  <p className="text-gray-600 mt-4 leading-7">
-                    {data?.description}
-                  </p>
+                {/* Price */}
+                <div className="mt-5 flex items-center gap-3 border-b border-gray-100 pb-5">
+                  <h4 className="text-2xl font-bold text-red-600">
+                    {discount}$
+                  </h4>
+
+                  <h3 className="text-base text-gray-400 line-through">
+                    {original ? original + "$" : null}
+                  </h3>
                 </div>
 
-                {/* Price Section */}
-                <div className="flex items-center gap-4 flex-wrap">
-                  {data?.discount_price ? (
-                    <>
-                      <span className="text-3xl font-bold text-red-600">
-                        ${data?.discount_price}
-                      </span>
-                      <span className="text-lg text-gray-400 line-through">
-                        ${data?.price}
-                      </span>
-                    </>
-                  ) : (
-                    <span className="text-3xl font-bold text-gray-900">
-                      ${data?.price}
-                    </span>
-                  )}
-                </div>
-
-                {/* Extra Details */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-2xl bg-gray-50 border">
-                    <p className="text-sm text-gray-500">Rating</p>
-                    <p className="font-bold text-lg text-yellow-500">
-                      ⭐ {data?.ratings}
-                    </p>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-gray-50 border">
-                    <p className="text-sm text-gray-500">Stock</p>
-                    <p className="font-bold text-lg text-green-600">
-                      {data?.stock}
-                    </p>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-gray-50 border">
-                    <p className="text-sm text-gray-500">Sold Out</p>
-                    <p className="font-bold text-lg text-red-500">
-                      {data?.sold_out}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Quantity Selector */}
-                <div className="flex items-center gap-4">
-                  <span className="font-semibold text-gray-700">Quantity:</span>
-
-                  <div className="flex items-center border rounded-xl overflow-hidden">
+                {/* Quantity + Wishlist */}
+                <div className="mt-8 flex items-center justify-between pr-3">
+                  
+                  {/* Quantity */}
+                  <div className="flex items-center overflow-hidden rounded-lg border border-gray-200 shadow-sm">
                     <button
-                      onClick={decreaseCount}
-                      className="w-12 h-12 bg-gray-100 hover:bg-gray-200 text-xl font-bold transition"
+                      type="button"
+                      className="flex h-10 w-10 items-center justify-center bg-gray-50 text-xl font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                      onClick={decrementCount}
                     >
                       -
                     </button>
 
-                    <span className="w-14 text-center font-semibold text-lg">
+                    <span className="flex h-10 min-w-[50px] items-center justify-center border-x border-gray-200 bg-white px-3 text-sm font-semibold text-gray-800">
                       {count}
                     </span>
 
                     <button
-                      onClick={increaseCount}
-                      className="w-12 h-12 bg-gray-100 hover:bg-gray-200 text-xl font-bold transition"
+                      type="button"
+                      className="flex h-10 w-10 items-center justify-center bg-gray-50 text-xl font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                      onClick={incrementCount}
                     >
                       +
                     </button>
                   </div>
-                </div>
 
-                {/* Total Price */}
-                <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
-                  <p className="text-sm text-gray-600">Total Price</p>
-                  <h2 className="text-2xl font-bold text-indigo-700">
-                    ${totalPrice}
-                  </h2>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-4 flex-wrap">
-                  <button className="flex-1 min-w-[200px] px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition shadow-md">
-                    Add to Cart <AiOutlineShoppingCart size={20} />
-                  </button>
-
+                  {/* Wishlist */}
                   <button
-                    onClick={() => setClick(!click)}
-                    className="w-14 h-14 rounded-xl border bg-white hover:bg-red-50 flex items-center justify-center transition"
-                    title={click ? "Remove from Wishlist" : "Add to Wishlist"}
+                    type="button"
+                    className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:border-red-200 hover:bg-red-50"
+                    onClick={() =>
+                      isInWishlist
+                        ? removeFromWishlistHandler(data)
+                        : addToWishlistHandler(data)
+                    }
+                    aria-label={
+                      isInWishlist ? "Remove from wishlist" : "Add to wishlist"
+                    }
                   >
-                    {click ? (
-                      <AiFillHeart size={26} className="text-red-500" />
+                    {isInWishlist ? (
+                      <AiFillHeart
+                        size={24}
+                        aria-hidden="true"
+                        className="text-red-500"
+                      />
                     ) : (
-                      <AiOutlineHeart size={26} className="text-gray-600" />
+                      <AiOutlineHeart
+                        size={24}
+                        aria-hidden="true"
+                        className="text-gray-500 transition-colors hover:text-red-500"
+                      />
                     )}
                   </button>
                 </div>
+
+                {/* Add To Cart */}
+                <button
+                  type="button"
+                  className="mt-7 flex h-12 w-full items-center justify-center rounded-xl bg-red-600 px-6 text-sm font-semibold text-white shadow-lg shadow-red-100 transition-all duration-200 hover:bg-red-700 active:scale-[0.98]"
+                  onClick={() => addToCartHandler(data._id ?? data.id)}
+                >
+                  <span className="flex items-center gap-2">
+                    Add to Cart
+                    <AiOutlineShoppingCart size={20} />
+                  </span>
+                </button>
               </div>
             </div>
           </div>
+          </div>
         </div>
-      )}
-    </>
+      ) : null}
+    </div>
   );
 };
 
-export default ProductDetailCart;
+export default ProductDetailsCard;

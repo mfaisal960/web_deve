@@ -155,7 +155,7 @@ const Header = ({ activeHeading }) => {
             >
 
               <img
-                src="https://shopo.quomodothemes.website/assets/images/logo.svg"
+                src="/logo.svg"
                 alt="Shop Logo"
                 className="
                   w-[150px]
@@ -604,7 +604,7 @@ const Header = ({ activeHeading }) => {
                   border-2
                   border-[#111827]
                 ">
-                  {wishlist?.length || 0}
+                  {wishlist&&wishlist.length}
                 </span>
 
               </button>
@@ -772,7 +772,7 @@ const Header = ({ activeHeading }) => {
           <Link to="/" className="flex items-center">
 
             <img
-              src="https://shopo.quomodothemes.website/assets/images/logo.svg"
+              src="/logo.svg"
               alt="Shop Logo"
               className="
                 w-[125px]
@@ -930,7 +930,7 @@ const Header = ({ activeHeading }) => {
               >
 
                 <img
-                  src="https://shopo.quomodothemes.website/assets/images/logo.svg"
+                  src="/logo.svg"
                   alt="Shop Logo"
                   className="w-[125px]"
                 />

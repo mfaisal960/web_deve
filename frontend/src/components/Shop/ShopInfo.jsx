@@ -6,19 +6,37 @@ import { server } from "../../server";
 import Loader from "../Login/Layout/Loader";
 import { useDispatch, useSelector } from "react-redux";
 import { getAllProductsShop } from "../../redux/actions/product";
+import { productData as demoProducts } from "../../static/data";
 
-const ShopInfo = ({ isOwner }) => {
-  const [data, setData] = useState({});
+const ShopInfo = ({ isOwner, initialShop }) => {
+  const [data, setData] = useState(initialShop || {});
   const [isLoading, setIsLoading] = useState(false);
 
   const { products } = useSelector((state) => state.products);
   const { id } = useParams();
   const dispatch = useDispatch();
+  const isDatabaseId = /^[a-f\d]{24}$/i.test(id || "");
+  const shopProducts = isDatabaseId
+    ? products || []
+    : demoProducts.filter(
+        (product) =>
+          String(product.shop?._id || product.shop?.id || product.shopId) ===
+          String(id)
+      );
 
   useEffect(() => {
     if (!id) {
       return;
     }
+
+    // Demo products use numeric shop IDs. They are not MongoDB ObjectIds and
+    // must not be sent to the API endpoint that queries Shop.findById().
+    if (!isDatabaseId) {
+      setData(initialShop || {});
+      setIsLoading(false);
+      return;
+    }
+
     dispatch(getAllProductsShop(id));
 
     setIsLoading(true);
@@ -30,10 +48,10 @@ const ShopInfo = ({ isOwner }) => {
         setIsLoading(false);
       })
       .catch((error) => {
-        console.log(error);
+        console.error("Unable to load shop information:", error);
         setIsLoading(false);
       });
-  }, [dispatch, id]);
+  }, [dispatch, id, initialShop]);
 
   const logoutHandler = async () => {
     try {
@@ -48,16 +66,16 @@ const ShopInfo = ({ isOwner }) => {
   };
 
   const totalReviewsLength =
-    products?.reduce(
-      (acc, product) => acc + product.reviews.length,
+    shopProducts.reduce(
+      (acc, product) => acc + (product.reviews?.length || 0),
       0
     ) || 0;
 
   const totalRatings =
-    products?.reduce(
+    shopProducts.reduce(
       (acc, product) =>
         acc +
-        product.reviews.reduce(
+        (product.reviews || []).reduce(
           (sum, review) => sum + review.rating,
           0
         ),
@@ -80,7 +98,11 @@ const ShopInfo = ({ isOwner }) => {
           <div className="flex flex-col items-center px-5 pt-7 pb-6 border-b border-gray-100">
             <div className="relative">
               <img
-                src={data.avatar?.url}
+                src={
+                  data.avatar?.url ||
+                  data.shop_avatar?.url ||
+                  "https://dummyimage.com/128x128/e5e7eb/6b7280?text=Shop"
+                }
                 alt={data.name || "Shop"}
                 className="w-28 h-28 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-gray-50 shadow-md"
               />
@@ -130,7 +152,7 @@ const ShopInfo = ({ isOwner }) => {
               </p>
 
               <p className="mt-1 text-sm font-semibold text-gray-900">
-                {products?.length || 0}
+                {shopProducts.length}
               </p>
             </div>
 

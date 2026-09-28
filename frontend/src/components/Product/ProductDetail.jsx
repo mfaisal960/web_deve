@@ -9,7 +9,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { getAllProductsShop } from "../../redux/actions/product";
-import { server } from "../../server";
+import { server, resolveImageUrl } from "../../server";
 import {
   addToWishlist,
   removeFromWishlist,
@@ -32,17 +32,62 @@ const ProductDetails = ({ data }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
+  // Product images fallback
+  const productImages = data?.images?.length
+    ? data.images
+    : data?.image_Url?.length
+      ? data.image_Url
+      : data?.image
+        ? [{ url: data.image }]
+        : [];
+
+  // Entries can be objects ({ url }) or bare URL strings, depending on source.
+  const productImageUrls = productImages
+    .map((image) =>
+      resolveImageUrl(typeof image === "string" ? image : image?.url)
+    )
+    .filter(Boolean);
+
+  const selectedImageUrl =
+    productImageUrls[select] || productImageUrls[0] ||
+    "https://dummyimage.com/800x600/f3f4f6/6b7280?text=No+Product+Image";
+
+  // Shop fallback
+  const shop = data?.shop || {};
+  const shopId = shop._id || shop.id;
+
+  const shopAvatarUrl =
+    resolveImageUrl(shop.avatar?.url || shop.shop_avatar?.url) ||
+    "https://dummyimage.com/112x112/e5e7eb/6b7280?text=Shop";
+
+  // Product fallback
+  const productId = data?._id || data?.id;
+
+  const discountPrice =
+    data?.discountPrice ?? data?.discount_price ?? data?.price ?? 0;
+
+  const originalPrice = data?.originalPrice ?? data?.price;
+
   useEffect(() => {
-    if (data?.shop?._id) {
-      dispatch(getAllProductsShop(data.shop._id));
+    if (shopId) {
+      dispatch(getAllProductsShop(shopId));
     }
 
-    if (wishlist?.find((item) => item._id === data?._id)) {
+    if (
+      wishlist?.some(
+        (item) => (item._id || item.id) === productId
+      )
+    ) {
       setClick(true);
     } else {
       setClick(false);
     }
-  }, [data, wishlist, dispatch]);
+  }, [data, wishlist, dispatch, shopId, productId]);
+
+  useEffect(() => {
+    setSelect(0);
+    setCount(1);
+  }, [data?._id, data?.id]);
 
   const incrementCount = () => {
     setCount((prev) => prev + 1);
@@ -65,7 +110,9 @@ const ProductDetails = ({ data }) => {
   };
 
   const addToCartHandler = (id) => {
-    const isItemExists = cart?.find((item) => item._id === id);
+    const isItemExists = cart?.some(
+      (item) => (item._id || item.id) === id
+    );
 
     if (isItemExists) {
       toast.error("Item already in cart!");
@@ -112,9 +159,14 @@ const ProductDetails = ({ data }) => {
       return;
     }
 
-    const groupTitle = data._id + user._id;
+    if (!shopId) {
+      toast.error("Seller information is unavailable for this product.");
+      return;
+    }
+
+    const groupTitle = productId + user._id;
     const userId = user._id;
-    const sellerId = data.shop._id;
+    const sellerId = shopId;
 
     try {
       const res = await axios.post(
@@ -129,7 +181,7 @@ const ProductDetails = ({ data }) => {
       navigate(`/inbox?${res.data.conversation._id}`);
     } catch (error) {
       toast.error(
-        error.response?.data?.message || "Something went wrong"
+        error?.response?.data?.message || "Something went wrong."
       );
     }
   };
@@ -137,102 +189,116 @@ const ProductDetails = ({ data }) => {
   return (
     <div className="min-h-screen bg-white">
       {data && (
-        <div className="mx-auto w-[95%] max-w-7xl py-6 sm:w-[92%] lg:w-[88%]">
-          
-          {/* Product Main Section */}
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
+
+          {/* Product Overview */}
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
 
             {/* Product Images */}
-            <div className="w-full">
-              {/* Main Image */}
-              <div className="flex min-h-[350px] items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:min-h-[450px]">
-                <img
-                  src={data?.images?.[select]?.url}
-                  alt={data?.name || "Product"}
-                  className="h-full max-h-[450px] w-full object-contain transition-transform duration-300 hover:scale-105"
-                />
-              </div>
+            <div className="space-y-5">
 
-              {/* Thumbnails */}
-              <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
-                {data?.images?.map((image, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => setSelect(index)}
-                    className={`h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border-2 bg-white p-1 transition-all duration-200 ${
-                      select === index
-                        ? "border-blue-600 ring-2 ring-blue-100"
-                        : "border-slate-200 hover:border-slate-400"
-                    }`}
-                  >
-                    <img
-                      src={image?.url}
-                      alt={`${data?.name} ${index + 1}`}
-                      className="h-full w-full rounded-lg object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
+              {/* Main Image */}
+               <div className="flex min-h-[400px] items-center justify-center overflow-hidden rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:min-h-[520px]">
+                 <img
+                   src={selectedImageUrl}
+                   alt={data.name || "Product"}
+                   className="h-full max-h-[500px] w-full object-contain transition-transform duration-500 hover:scale-[1.03]"
+                   onError={(event) => {
+                     event.currentTarget.onerror = null;
+                     event.currentTarget.src =
+                       "https://dummyimage.com/800x600/f3f4f6/6b7280?text=No+Product+Image";
+                   }}
+                 />
+               </div>
+
+              {/* Image Thumbnails */}
+              {productImageUrls.length > 0 && (
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {productImageUrls.map((url, index) => (
+                    <button
+                      key={url || index}
+                      type="button"
+                      onClick={() => setSelect(index)}
+                      aria-label={`View product image ${index + 1}`}
+                      className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border-2 bg-white transition-all duration-200 ${
+                        select === index
+                          ? "border-gray-900 shadow-md"
+                          : "border-gray-200 hover:border-gray-400"
+                      }`}
+                    >
+                      <img
+                        src={url}
+                        alt={`${data.name || "Product"} ${index + 1}`}
+                        className="h-full w-full object-cover"
+                        onError={(event) => {
+                          event.currentTarget.onerror = null;
+                          event.currentTarget.src =
+                            "https://dummyimage.com/160x160/f3f4f6/6b7280?text=Product";
+                        }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Product Information */}
-            <div className="flex flex-col pt-2 lg:pt-5">
-              
-              {/* Product Title */}
-              <h1 className="text-2xl font-bold leading-tight text-slate-900 sm:text-3xl lg:text-4xl">
-                {data.name}
-              </h1>
+            <div className="flex flex-col">
 
-              {/* Description */}
-              <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
-                {data.description}
-              </p>
-
-              {/* Price */}
-              <div className="mt-6 flex items-center gap-3">
-                <span className="text-3xl font-bold text-blue-600">
-                  ${data.discountPrice}
+              {/* Title & Description */}
+              <div className="border-b border-gray-200 pb-6">
+                <span className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gray-600">
+                  Product
                 </span>
 
-                {data.originalPrice && (
-                  <span className="text-lg font-medium text-slate-400 line-through">
-                    ${data.originalPrice}
-                  </span>
-                )}
+                <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+                  {data.name}
+                </h1>
+
+                <p className="mt-5 text-base leading-7 text-gray-600">
+                  {data.description}
+                </p>
               </div>
 
-              {/* Divider */}
-              <div className="my-6 h-px w-full bg-slate-200" />
+              {/* Pricing */}
+              <div className="flex items-end gap-4 border-b border-gray-200 py-6">
+                <span className="text-3xl font-bold text-gray-900">
+                  ${discountPrice}
+                </span>
 
-              {/* Quantity + Wishlist */}
-              <div className="flex items-center justify-between gap-4">
-                
-                {/* Quantity */}
-                <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                {originalPrice &&
+                  Number(originalPrice) !== Number(discountPrice) && (
+                    <span className="text-lg text-gray-400 line-through">
+                      ${originalPrice}
+                    </span>
+                  )}
+              </div>
+
+              {/* Quantity & Wishlist */}
+              <div className="flex items-center justify-between py-6">
+                <div className="flex items-center overflow-hidden rounded-xl border border-gray-300">
                   <button
                     type="button"
                     onClick={decrementCount}
                     disabled={count <= 1}
-                    className="flex h-11 w-11 items-center justify-center text-xl font-semibold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-11 w-11 items-center justify-center bg-gray-50 text-xl font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     −
                   </button>
 
-                  <span className="flex h-11 min-w-12 items-center justify-center border-x border-slate-200 bg-slate-50 px-4 font-semibold text-slate-800">
+                  <span className="flex h-11 w-14 items-center justify-center border-x border-gray-300 bg-white text-sm font-semibold text-gray-900">
                     {count}
                   </span>
 
                   <button
                     type="button"
                     onClick={incrementCount}
-                    className="flex h-11 w-11 items-center justify-center text-xl font-semibold text-slate-700 transition hover:bg-slate-100"
+                    className="flex h-11 w-11 items-center justify-center bg-gray-50 text-xl font-medium text-gray-700 transition hover:bg-gray-100"
                   >
                     +
                   </button>
                 </div>
 
-                {/* Wishlist */}
                 <button
                   type="button"
                   onClick={() =>
@@ -240,23 +306,21 @@ const ProductDetails = ({ data }) => {
                       ? removeFromWishlistHandler(data)
                       : addToWishlistHandler(data)
                   }
-                  title={
+                  aria-label={
                     click
                       ? "Remove from wishlist"
                       : "Add to wishlist"
                   }
-                  className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:scale-105 hover:border-red-200 hover:bg-red-50"
+                  className={`flex h-11 w-11 items-center justify-center rounded-full border transition-all duration-200 ${
+                    click
+                      ? "border-red-200 bg-red-50"
+                      : "border-gray-200 bg-white hover:border-red-200 hover:bg-red-50"
+                  }`}
                 >
                   {click ? (
-                    <AiFillHeart
-                      size={24}
-                      className="text-red-500"
-                    />
+                    <AiFillHeart className="text-2xl text-red-500" />
                   ) : (
-                    <AiOutlineHeart
-                      size={24}
-                      className="text-slate-600"
-                    />
+                    <AiOutlineHeart className="text-2xl text-gray-700" />
                   )}
                 </button>
               </div>
@@ -264,61 +328,70 @@ const ProductDetails = ({ data }) => {
               {/* Add To Cart */}
               <button
                 type="button"
-                onClick={() => addToCartHandler(data._id)}
-                className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 font-semibold text-white shadow-lg shadow-blue-200 transition-all duration-200 hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-blue-300 active:translate-y-0"
+                onClick={() => addToCartHandler(productId)}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-gray-800 hover:shadow-lg active:scale-[0.99]"
               >
                 Add to Cart
-                <AiOutlineShoppingCart size={21} />
+                <AiOutlineShoppingCart className="text-lg" />
               </button>
 
-              {/* Seller */}
-              <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              {/* Seller Card */}
+              <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
-                  {/* Seller Info */}
                   <Link
-                    to={`/shop/preview/${data?.shop?._id}`}
-                    className="flex items-center gap-3"
+                    to={
+                      shopId
+                        ? `/shop/preview/${shopId}`
+                        : "/"
+                    }
+                    state={{ shop }}
+                    className="group flex items-center gap-3"
                   >
                     <img
-                      src={data?.shop?.avatar?.url}
-                      alt={data?.shop?.name || "Seller"}
-                      className="h-14 w-14 rounded-full border-2 border-white object-cover shadow-sm"
+                      src={shopAvatarUrl}
+                      alt={shop.name || "Shop"}
+                      className="h-14 w-14 rounded-full object-cover ring-2 ring-white"
+                      onError={(event) => {
+                        event.currentTarget.onerror = null;
+                        event.currentTarget.src =
+                          "https://dummyimage.com/112x112/e5e7eb/6b7280?text=Shop";
+                      }}
                     />
 
                     <div>
-                      <h3 className="font-semibold text-slate-900 transition hover:text-blue-600">
-                        {data.shop.name}
+                      <h3 className="font-semibold text-gray-900 transition group-hover:text-gray-600">
+                        {shop.name || "Shop"}
                       </h3>
 
-                      <div className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                        <span>{averageRating}/5</span>
-                        <span>•</span>
-                        <span>Ratings</span>
-                      </div>
+                      <p className="mt-1 text-sm text-gray-500">
+                        ({averageRating}/5) Ratings
+                      </p>
                     </div>
                   </Link>
 
-                  {/* Message */}
                   <button
                     type="button"
                     onClick={handleMessageSubmit}
-                    className="flex h-11 items-center justify-center gap-2 rounded-xl bg-purple-600 px-5 text-sm font-semibold text-white transition hover:bg-purple-700"
+                    className="flex h-11 items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800 hover:shadow-md"
                   >
                     Send Message
-                    <AiOutlineMessage size={19} />
+                    <AiOutlineMessage className="text-lg" />
                   </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Product Details */}
+          {/* Product Information */}
           <ProductDetailsInfo
             data={data}
             products={products}
             totalReviewsLength={totalReviewsLength}
             averageRating={averageRating}
+            shop={shop}
+            shopId={shopId}
+            shopAvatarUrl={shopAvatarUrl}
           />
         </div>
       )}
@@ -331,6 +404,9 @@ const ProductDetailsInfo = ({
   products,
   totalReviewsLength,
   averageRating,
+  shop,
+  shopId,
+  shopAvatarUrl,
 }) => {
   const [active, setActive] = useState(1);
 
@@ -350,176 +426,176 @@ const ProductDetailsInfo = ({
   ];
 
   return (
-    <div className="mt-10 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm">
-      
-      {/* Tabs */}
-      <div className="flex overflow-x-auto border-b border-slate-200 bg-white">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActive(tab.id)}
-            className={`relative min-w-fit whitespace-nowrap px-4 py-5 text-sm font-semibold transition-colors sm:px-6 sm:text-base ${
-              active === tab.id
-                ? "text-blue-600"
-                : "text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            {tab.label}
+    <section className="mt-12 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
 
-            {active === tab.id && (
-              <span className="absolute bottom-0 left-0 h-0.5 w-full bg-blue-600" />
-            )}
-          </button>
-        ))}
+      {/* Tabs */}
+      <div className="overflow-x-auto border-b border-gray-200">
+        <div className="flex min-w-max">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActive(tab.id)}
+              className={`relative px-5 py-5 text-sm font-semibold transition sm:px-8 sm:text-base ${
+                active === tab.id
+                  ? "text-gray-900"
+                  : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              {tab.label}
+
+              {active === tab.id && (
+                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-gray-900" />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Product Details Tab */}
+      {/* Product Details */}
       {active === 1 && (
-        <div className="p-5 sm:p-8">
-          <h3 className="mb-4 text-xl font-bold text-slate-900">
+        <div className="p-6 sm:p-8 lg:p-10">
+          <h3 className="mb-4 text-lg font-semibold text-gray-900">
             Product Description
           </h3>
 
-          <p className="whitespace-pre-line text-sm leading-8 text-slate-600 sm:text-base">
+          <p className="whitespace-pre-line text-base leading-8 text-gray-600">
             {data.description}
           </p>
         </div>
       )}
 
-      {/* Reviews Tab */}
+      {/* Reviews */}
       {active === 2 && (
-        <div className="min-h-[300px] p-5 sm:p-8">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-slate-900">
-                Customer Reviews
-              </h3>
+        <div className="min-h-[300px] p-6 sm:p-8 lg:p-10">
+          <div className="space-y-6">
+            {data?.reviews?.map((item, index) => (
+              <div
+                key={item?._id || item?.id || index}
+                className="flex gap-4 border-b border-gray-100 pb-6 last:border-0"
+              >
+                <img
+                  src={
+                    resolveImageUrl(item.user?.avatar?.url) ||
+                    "https://dummyimage.com/96x96/e5e7eb/6b7280?text=User"
+                  }
+                  alt={item.user?.name || "Customer"}
+                  className="h-12 w-12 shrink-0 rounded-full object-cover"
+                />
 
-              <p className="mt-1 text-sm text-slate-500">
-                {totalReviewsLength} review
-                {totalReviewsLength !== 1 ? "s" : ""}
-              </p>
-            </div>
-          </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h4 className="font-semibold text-gray-900">
+                      {item.user?.name || "Customer"}
+                    </h4>
 
-          <div className="space-y-4">
-            {data?.reviews?.length > 0 ? (
-              data.reviews.map((item, index) => (
-                <div
-                  key={index}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="flex items-start gap-3">
-                    <img
-                      src={item?.user?.avatar?.url}
-                      alt={item?.user?.name || "User"}
-                      className="h-11 w-11 flex-shrink-0 rounded-full object-cover"
-                    />
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                        <h4 className="font-semibold text-slate-900">
-                          {item?.user?.name}
-                        </h4>
-
-                        <Ratings rating={data?.ratings} />
-                      </div>
-
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        {item?.comment}
-                      </p>
-                    </div>
+                    <Ratings rating={data?.ratings} />
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="flex min-h-[200px] items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white">
-                <div className="text-center">
-                  <h5 className="font-semibold text-slate-700">
-                    No Reviews Yet
-                  </h5>
 
-                  <p className="mt-1 text-sm text-slate-400">
-                    Be the first customer to review this product.
+                  <p className="mt-2 text-sm leading-6 text-gray-600">
+                    {item.comment}
                   </p>
                 </div>
+              </div>
+            ))}
+
+            {(data?.reviews?.length || 0) === 0 && (
+              <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50">
+                <p className="text-sm font-medium text-gray-500">
+                  No reviews for this product yet.
+                </p>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Seller Information Tab */}
+      {/* Seller Information */}
       {active === 3 && (
-        <div className="grid grid-cols-1 gap-8 p-5 sm:p-8 lg:grid-cols-2">
-          
+        <div className="grid grid-cols-1 gap-8 p-6 sm:p-8 lg:grid-cols-2 lg:p-10">
+
           {/* Seller Profile */}
           <div>
             <Link
-              to={`/shop/preview/${data?.shop?._id}`}
-              className="group flex items-center"
+              to={
+                shopId
+                  ? `/shop/preview/${shopId}`
+                  : "/"
+              }
+              state={{ shop }}
+              className="group inline-flex items-center gap-3"
             >
               <img
-                src={data?.shop?.avatar?.url}
-                alt={data?.shop?.name || "Seller"}
-                className="h-16 w-16 rounded-full border-2 border-white object-cover shadow-md"
+                src={shopAvatarUrl}
+                className="h-14 w-14 rounded-full object-cover"
+                alt={shop.name || "Shop"}
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src =
+                    "https://dummyimage.com/112x112/e5e7eb/6b7280?text=Shop";
+                }}
               />
 
-              <div className="pl-4">
-                <h3 className="font-bold text-slate-900 transition group-hover:text-blue-600">
-                  {data.shop.name}
+              <div>
+                <h3 className="font-semibold text-gray-900 transition group-hover:text-gray-600">
+                  {shop.name || "Shop"}
                 </h3>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  {averageRating}/5 Ratings
+                <p className="mt-1 text-sm text-gray-500">
+                  ({averageRating}/5) Ratings
                 </p>
               </div>
             </Link>
 
-            <p className="mt-5 text-sm leading-7 text-slate-600">
-              {data?.shop?.description ||
-                "No seller description available."}
+            <p className="mt-5 text-sm leading-7 text-gray-600">
+              {shop.description ||
+                "No shop description available."}
             </p>
           </div>
 
-          {/* Seller Stats */}
-          <div className="flex items-center lg:justify-end">
-            <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                <span className="text-sm font-medium text-slate-500">
-                  Joined On
+          {/* Seller Statistics */}
+          <div className="rounded-2xl bg-gray-50 p-6">
+            <div className="space-y-4 text-sm">
+
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-semibold text-gray-900">
+                  Joined on
                 </span>
 
-                <span className="text-sm font-semibold text-slate-900">
-                  {data?.shop?.createdAt?.slice(0, 10)}
+                <span className="text-gray-600">
+                  {shop.createdAt?.slice(0, 10) ||
+                    "Not available"}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between border-b border-slate-100 py-4">
-                <span className="text-sm font-medium text-slate-500">
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-semibold text-gray-900">
                   Total Products
                 </span>
 
-                <span className="text-sm font-semibold text-slate-900">
+                <span className="text-gray-600">
                   {products?.length || 0}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between py-4">
-                <span className="text-sm font-medium text-slate-500">
+              <div className="flex items-center justify-between gap-4">
+                <span className="font-semibold text-gray-900">
                   Total Reviews
                 </span>
 
-                <span className="text-sm font-semibold text-slate-900">
+                <span className="text-gray-600">
                   {totalReviewsLength}
                 </span>
               </div>
 
               <Link
-                to={`/shop/preview/${data?.shop?._id}`}
-                className="mt-2 flex h-11 w-full items-center justify-center rounded-xl bg-blue-600 font-semibold text-white transition hover:bg-blue-700"
+                to={
+                  shopId
+                    ? `/shop/preview/${shopId}`
+                    : "/"
+                }
+                state={{ shop }}
+                className="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800 hover:shadow-md"
               >
                 Visit Shop
               </Link>
@@ -527,7 +603,7 @@ const ProductDetailsInfo = ({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };
 

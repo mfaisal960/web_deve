@@ -75,7 +75,10 @@ router.get(
   "/get-coupon-value/:name",
   catchAsyncErrors(async (req, res, next) => {
     try {
-      const couponCode = await CoupounCode.findOne({ name: req.params.name });
+      const name = req.params.name.trim();
+      const couponCode = await CoupounCode.findOne({
+        name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      });
 
       res.status(200).json({
         success: true,

@@ -1,7 +1,10 @@
 import React from 'react'
-import EventCart from './EventCart'
+import { useSelector } from "react-redux";
+import EventCard from "./EventCard";
 
 const Event = () => {
+  const { allEvents = [] } = useSelector((state) => state.events);
+
   return (
     <section className="w-full bg-[#f5f5f5] py-8 md:py-10">
       <div className="w-[96%] md:w-[94%] lg:w-[92%] mx-auto">
@@ -13,9 +16,11 @@ const Event = () => {
           </h1>
         </div>
 
-        {/* Event Card */}
-        <div className="bg-white rounded-sm px-4 sm:px-6 md:px-10 lg:px-14 py-8 md:py-10">
-          <EventCart />
+        {/* Event Cards */}
+        <div className="space-y-6">
+          {allEvents.map((event) => (
+            <EventCard key={event._id || event.id} data={event} />
+          ))}
         </div>
       </div>
     </section>

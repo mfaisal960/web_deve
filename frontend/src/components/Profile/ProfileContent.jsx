@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useEffect, useState } from "react";
 import {
   AiOutlineArrowRight,
   AiOutlineCamera,
@@ -22,24 +23,42 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import { getAllOrdersOfUser } from "../../redux/actions/order";
 
-const ProfileContent = ({ active }) => {
-  const { user, error, successMessage } = useSelector(
-    (state) => state.user
-  );
+const inputClasses =
+  "w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
-  const [name, setName] = useState(user && user.name);
-  const [email, setEmail] = useState(user && user.email);
-  const [phoneNumber, setPhoneNumber] = useState(
-    user && user.phoneNumber
-  );
+const selectClasses =
+  "w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+
+const primaryButtonClasses =
+  "inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-blue-700 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2";
+
+const ProfileContent = ({ active }) => {
+  const { user, error, successMessage } = useSelector((state) => state.user);
+
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
   const [password, setPassword] = useState("");
   const [avatar, setAvatar] = useState(null);
 
   const dispatch = useDispatch();
 
   useEffect(() => {
+    if (user) {
+      setName(user.name || "");
+      setEmail(user.email || "");
+      setPhoneNumber(user.phoneNumber || "");
+    }
+  }, [user]);
+
+  useEffect(() => {
     if (error) {
-      toast.error(error);
+      toast.error(
+        typeof error === "string"
+          ? error
+          : error?.response?.data?.message || "Something went wrong"
+      );
+
       dispatch({ type: "clearErrors" });
     }
 
@@ -52,17 +71,14 @@ const ProfileContent = ({ active }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    dispatch(
-      updateUserInformation(
-        name,
-        email,
-        phoneNumber,
-        password
-      )
-    );
+    dispatch(updateUserInformation(name, email, phoneNumber, password));
   };
 
   const handleImage = async (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
     const reader = new FileReader();
 
     reader.onload = () => {
@@ -82,145 +98,135 @@ const ProfileContent = ({ active }) => {
             toast.success("Avatar updated successfully!");
           })
           .catch((error) => {
-            toast.error(error);
+            toast.error(
+              error?.response?.data?.message || "Failed to update avatar"
+            );
           });
       }
     };
 
-    reader.readAsDataURL(e.target.files[0]);
+    reader.readAsDataURL(file);
   };
 
   return (
-    <div className="w-full min-h-full bg-white">
-
-      {/* ================= PROFILE ================= */}
+    <div className="w-full">
+      {/* Profile */}
       {active === 1 && (
-        <div className="w-full px-4 py-6 sm:px-6 md:px-8 lg:px-10">
-
-          {/* Profile Header */}
-          <div className="mb-8 flex flex-col items-center justify-center">
-
+        <div className="rounded-xl bg-white p-4 shadow-sm sm:p-6 lg:p-8">
+          {/* Avatar */}
+          <div className="mb-8 flex justify-center">
             <div className="relative">
-              <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-emerald-500 bg-gray-100 shadow-lg sm:h-36 sm:w-36">
-                <img
-                  src={
-                    user?.avatar?.startsWith("data:") || user?.avatar?.startsWith("http")
-                      ? user.avatar
-                      : user?.avatar
-                        ? `${server.replace("/api/v2", "/")}${user.avatar.replace(/\\/g, "/")}`
-                        : undefined
-                  }
-                  alt="Profile"
-                  className="h-full w-full object-cover"
-                />
-              </div>
+              <img
+                src={avatar || user?.avatar?.url}
+                alt={user?.name || "Profile"}
+                className="h-32 w-32 rounded-full border-4 border-green-500 object-cover shadow-md sm:h-36 sm:w-36"
+              />
 
-              {/* Camera Button */}
               <label
-                htmlFor="image"
-                className="absolute bottom-1 right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-gray-900 text-white shadow-md transition-all duration-200 hover:bg-emerald-600"
+                htmlFor="profile-image"
+                className="absolute bottom-1 right-1 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-gray-100 text-gray-700 shadow-md transition-all duration-200 hover:bg-blue-600 hover:text-white"
               >
                 <AiOutlineCamera size={18} />
 
                 <input
                   type="file"
-                  id="image"
-                  className="hidden"
+                  id="profile-image"
                   accept="image/*"
+                  className="hidden"
                   onChange={handleImage}
                 />
               </label>
             </div>
-
-            <h2 className="mt-4 text-xl font-bold text-gray-900 sm:text-2xl">
-              {user?.name || "My Profile"}
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Manage your account information
-            </p>
           </div>
 
           {/* Profile Form */}
-          <form
-            onSubmit={handleSubmit}
-            aria-required={true}
-            className="mx-auto w-full max-w-4xl"
-          >
-
-            {/* First Row */}
+          <form onSubmit={handleSubmit} className="w-full">
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
               {/* Full Name */}
               <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                <label
+                  htmlFor="full-name"
+                  className="mb-2 block text-sm font-semibold text-gray-700"
+                >
                   Full Name
                 </label>
 
                 <input
+                  id="full-name"
                   type="text"
+                  className={inputClasses}
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your full name"
-                  className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
 
               {/* Email */}
               <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                <label
+                  htmlFor="email"
+                  className="mb-2 block text-sm font-semibold text-gray-700"
+                >
                   Email Address
                 </label>
 
                 <input
+                  id="email"
                   type="email"
+                  className={inputClasses}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
 
               {/* Phone */}
               <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                <label
+                  htmlFor="phone"
+                  className="mb-2 block text-sm font-semibold text-gray-700"
+                >
                   Phone Number
                 </label>
 
                 <input
+                  id="phone"
                   type="tel"
+                  className={inputClasses}
                   required
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="Enter your phone number"
-                  className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                 />
               </div>
 
               {/* Password */}
               <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                <label
+                  htmlFor="password"
+                  className="mb-2 block text-sm font-semibold text-gray-700"
+                >
                   Enter Your Password
                 </label>
 
                 <input
+                  id="password"
                   type="password"
-                  minLength={password ? 6 : undefined}
+                  className={inputClasses}
+                  required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Leave blank to keep your password"
-                  className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  placeholder="Enter your password"
                 />
               </div>
             </div>
 
-            {/* Update Button */}
-            <div className="mt-7 flex justify-center md:justify-start">
+            <div className="mt-7">
               <button
                 type="submit"
-                className="h-12 min-w-[180px] rounded-lg bg-emerald-600 px-8 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:bg-emerald-700 hover:shadow-lg active:scale-[0.98]"
+                className={`${primaryButtonClasses} min-w-[160px]`}
               >
                 Update Profile
               </button>
@@ -229,83 +235,37 @@ const ProfileContent = ({ active }) => {
         </div>
       )}
 
-      {/* ================= ORDERS ================= */}
+      {/* Orders */}
       {active === 2 && (
-        <div className="w-full p-4 sm:p-6 md:p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              My Orders
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              View and manage your recent orders
-            </p>
-          </div>
-
+        <div className="w-full overflow-hidden rounded-xl bg-white shadow-sm">
           <AllOrders />
         </div>
       )}
 
-      {/* ================= REFUNDS ================= */}
+      {/* Refund Orders */}
       {active === 3 && (
-        <div className="w-full p-4 sm:p-6 md:p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Refund Orders
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Track your refund requests
-            </p>
-          </div>
-
+        <div className="w-full overflow-hidden rounded-xl bg-white shadow-sm">
           <AllRefundOrders />
         </div>
       )}
 
-      {/* ================= INBOX ================= */}
-      {active === 4 && (
-        <div className="w-full p-4 sm:p-6 md:p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Inbox</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Your messages will appear here.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
-            <p className="text-sm text-gray-500">No messages yet.</p>
-          </div>
-        </div>
-      )}
-
-      {/* ================= TRACK ORDER ================= */}
+      {/* Track Orders */}
       {active === 5 && (
-        <div className="w-full p-4 sm:p-6 md:p-8">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Track Order
-            </h2>
-
-            <p className="mt-1 text-sm text-gray-500">
-              Track the status of your orders
-            </p>
-          </div>
-
+        <div className="w-full overflow-hidden rounded-xl bg-white shadow-sm">
           <TrackOrder />
         </div>
       )}
 
-      {/* ================= CHANGE PASSWORD ================= */}
+      {/* Change Password */}
       {active === 6 && (
-        <div className="w-full px-4 py-6 sm:px-6 md:px-8 lg:px-10">
+        <div className="w-full rounded-xl bg-white shadow-sm">
           <ChangePassword />
         </div>
       )}
 
-      {/* ================= ADDRESS ================= */}
+      {/* Addresses */}
       {active === 7 && (
-        <div className="w-full px-4 py-6 sm:px-6 md:px-8 lg:px-10">
+        <div className="w-full rounded-xl bg-white shadow-sm">
           <Address />
         </div>
       )}
@@ -313,220 +273,185 @@ const ProfileContent = ({ active }) => {
   );
 };
 
-
 /* =========================================================
-   ALL ORDERS
+   ORDERS
 ========================================================= */
 
 const AllOrders = () => {
   const { user } = useSelector((state) => state.user);
   const { orders } = useSelector((state) => state.order);
-
   const dispatch = useDispatch();
 
   useEffect(() => {
     if (user?._id) {
       dispatch(getAllOrdersOfUser(user._id));
     }
-  }, [dispatch, user]);
+  }, [dispatch, user?._id]);
 
   const columns = [
     {
       field: "id",
       headerName: "Order ID",
-      minWidth: 150,
-      flex: 0.7,
+      minWidth: 180,
+      flex: 1,
     },
-
     {
       field: "status",
       headerName: "Status",
-      minWidth: 130,
-      flex: 0.7,
-
-      cellClassName: (params) => {
-        return params.getValue(params.id, "status") === "Delivered"
-          ? "text-green-600 font-semibold"
-          : "text-red-500 font-semibold";
-      },
-    },
-
-    {
-      field: "itemsQty",
-      headerName: "Items Qty",
-      type: "number",
-      minWidth: 130,
-      flex: 0.7,
-    },
-
-    {
-      field: "total",
-      headerName: "Total",
-      type: "number",
-      minWidth: 130,
+      minWidth: 140,
       flex: 0.8,
-    },
-
-    {
-      field: " ",
-      flex: 1,
-      minWidth: 150,
-      headerName: "",
-      type: "number",
-      sortable: false,
-
       renderCell: (params) => {
+        const delivered = params.value === "Delivered";
+
         return (
-          <Link
-            to={`/user/order/${params.id}`}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-all hover:bg-gray-100 hover:text-emerald-600"
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              delivered
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+            }`}
           >
-            <Button>
-              <AiOutlineArrowRight size={20} />
-            </Button>
-          </Link>
+            {params.value}
+          </span>
         );
       },
     },
+    {
+      field: "itemsQty",
+      headerName: "Items",
+      type: "number",
+      minWidth: 120,
+      flex: 0.6,
+    },
+    {
+      field: "total",
+      headerName: "Total",
+      minWidth: 130,
+      flex: 0.7,
+    },
+    {
+      field: "action",
+      headerName: "Action",
+      minWidth: 100,
+      flex: 0.5,
+      sortable: false,
+      renderCell: (params) => (
+        <Link to={`/user/order/${params.row.id}`}>
+          <Button>
+            <AiOutlineArrowRight size={20} />
+          </Button>
+        </Link>
+      ),
+    },
   ];
 
-  const row = [];
-
-  orders &&
-    orders.forEach((item) => {
-      row.push({
-        id: item._id,
-        itemsQty: item.cart.length,
-        total: "US$ " + item.totalPrice,
-        status: item.status,
-      });
-    });
+  const rows =
+    orders?.map((item) => ({
+      id: item._id,
+      itemsQty: item.cart?.length || 0,
+      total: `US$ ${item.totalPrice}`,
+      status: item.status,
+    })) || [];
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="w-full overflow-x-auto p-2 sm:p-4">
-        <DataGrid
-          rows={row}
-          columns={columns}
-          pageSize={10}
-          disableSelectionOnClick
-          autoHeight
-        />
-      </div>
+    <div className="w-full overflow-x-auto p-3 sm:p-5">
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        pageSizeOptions={[5, 10, 25, 50, 100]}
+        disableRowSelectionOnClick
+        autoHeight
+      />
     </div>
   );
 };
 
-
 /* =========================================================
-   ALL REFUND ORDERS
+   REFUND ORDERS
 ========================================================= */
 
 const AllRefundOrders = () => {
   const { user } = useSelector((state) => state.user);
   const { orders } = useSelector((state) => state.order);
-
   const dispatch = useDispatch();
 
   useEffect(() => {
     if (user?._id) {
       dispatch(getAllOrdersOfUser(user._id));
     }
-  }, [dispatch, user]);
+  }, [dispatch, user?._id]);
 
   const eligibleOrders =
-    orders &&
-    orders.filter(
-      (item) => item.status === "Processing refund"
-    );
+    orders?.filter((item) => item.status === "Processing refund") || [];
 
   const columns = [
     {
       field: "id",
       headerName: "Order ID",
-      minWidth: 150,
-      flex: 0.7,
+      minWidth: 180,
+      flex: 1,
     },
-
     {
       field: "status",
       headerName: "Status",
-      minWidth: 130,
-      flex: 0.7,
-
-      cellClassName: (params) => {
-        return params.getValue(params.id, "status") === "Delivered"
-          ? "text-green-600 font-semibold"
-          : "text-red-500 font-semibold";
-      },
+      minWidth: 140,
+      flex: 0.8,
+      renderCell: (params) => (
+        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+          {params.value}
+        </span>
+      ),
     },
-
     {
       field: "itemsQty",
-      headerName: "Items Qty",
+      headerName: "Items",
       type: "number",
-      minWidth: 130,
-      flex: 0.7,
+      minWidth: 120,
+      flex: 0.6,
     },
-
     {
       field: "total",
       headerName: "Total",
-      type: "number",
       minWidth: 130,
-      flex: 0.8,
+      flex: 0.7,
     },
-
     {
-      field: " ",
-      flex: 1,
-      minWidth: 150,
-      headerName: "",
-      type: "number",
+      field: "action",
+      headerName: "Action",
+      minWidth: 100,
+      flex: 0.5,
       sortable: false,
-
-      renderCell: (params) => {
-        return (
-          <Link
-            to={`/user/order/${params.id}`}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-all hover:bg-gray-100 hover:text-emerald-600"
-          >
-            <Button>
-              <AiOutlineArrowRight size={20} />
-            </Button>
-          </Link>
-        );
-      },
+      renderCell: (params) => (
+        <Link to={`/user/order/${params.row.id}`}>
+          <Button>
+            <AiOutlineArrowRight size={20} />
+          </Button>
+        </Link>
+      ),
     },
   ];
 
-  const row = [];
-
-  eligibleOrders &&
-    eligibleOrders.forEach((item) => {
-      row.push({
-        id: item._id,
-        itemsQty: item.cart.length,
-        total: "US$ " + item.totalPrice,
-        status: item.status,
-      });
-    });
+  const rows = eligibleOrders.map((item) => ({
+    id: item._id,
+    itemsQty: item.cart?.length || 0,
+    total: `US$ ${item.totalPrice}`,
+    status: item.status,
+  }));
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="w-full overflow-x-auto p-2 sm:p-4">
-        <DataGrid
-          rows={row}
-          columns={columns}
-          pageSize={10}
-          autoHeight
-          disableSelectionOnClick
-        />
-      </div>
+    <div className="w-full overflow-x-auto p-3 sm:p-5">
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        pageSizeOptions={[5, 10, 25, 50, 100]}
+        autoHeight
+        disableRowSelectionOnClick
+      />
     </div>
   );
 };
-
 
 /* =========================================================
    TRACK ORDER
@@ -535,102 +460,92 @@ const AllRefundOrders = () => {
 const TrackOrder = () => {
   const { user } = useSelector((state) => state.user);
   const { orders } = useSelector((state) => state.order);
-
   const dispatch = useDispatch();
 
   useEffect(() => {
     if (user?._id) {
       dispatch(getAllOrdersOfUser(user._id));
     }
-  }, [dispatch, user]);
+  }, [dispatch, user?._id]);
 
   const columns = [
     {
       field: "id",
       headerName: "Order ID",
-      minWidth: 150,
-      flex: 0.7,
+      minWidth: 180,
+      flex: 1,
     },
-
     {
       field: "status",
       headerName: "Status",
-      minWidth: 130,
-      flex: 0.7,
-
-      cellClassName: (params) => {
-        return params.getValue(params.id, "status") === "Delivered"
-          ? "text-green-600 font-semibold"
-          : "text-red-500 font-semibold";
-      },
-    },
-
-    {
-      field: "itemsQty",
-      headerName: "Items Qty",
-      type: "number",
-      minWidth: 130,
-      flex: 0.7,
-    },
-
-    {
-      field: "total",
-      headerName: "Total",
-      type: "number",
-      minWidth: 130,
+      minWidth: 140,
       flex: 0.8,
-    },
-
-    {
-      field: " ",
-      flex: 1,
-      minWidth: 150,
-      headerName: "",
-      type: "number",
-      sortable: false,
-
       renderCell: (params) => {
+        const delivered = params.value === "Delivered";
+
         return (
-          <Link
-            to={`/user/track/order/${params.id}`}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-all hover:bg-gray-100 hover:text-emerald-600"
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              delivered
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+            }`}
           >
-            <Button>
-              <MdTrackChanges size={20} />
-            </Button>
-          </Link>
+            {params.value}
+          </span>
         );
       },
     },
+    {
+      field: "itemsQty",
+      headerName: "Items",
+      type: "number",
+      minWidth: 120,
+      flex: 0.6,
+    },
+    {
+      field: "total",
+      headerName: "Total",
+      minWidth: 130,
+      flex: 0.7,
+    },
+    {
+      field: "action",
+      headerName: "Track",
+      minWidth: 100,
+      flex: 0.5,
+      sortable: false,
+      renderCell: (params) => (
+        <Link to={`/user/track/order/${params.row.id}`}>
+          <Button>
+            <MdTrackChanges size={20} />
+          </Button>
+        </Link>
+      ),
+    },
   ];
 
-  const row = [];
-
-  orders &&
-    orders.forEach((item) => {
-      row.push({
-        id: item._id,
-        itemsQty: item.cart.length,
-        total: "US$ " + item.totalPrice,
-        status: item.status,
-      });
-    });
+  const rows =
+    orders?.map((item) => ({
+      id: item._id,
+      itemsQty: item.cart?.length || 0,
+      total: `US$ ${item.totalPrice}`,
+      status: item.status,
+    })) || [];
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="w-full overflow-x-auto p-2 sm:p-4">
-        <DataGrid
-          rows={row}
-          columns={columns}
-          pageSize={10}
-          disableSelectionOnClick
-          autoHeight
-        />
-      </div>
+    <div className="w-full overflow-x-auto p-3 sm:p-5">
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        pageSizeOptions={[5, 10, 25, 50, 100]}
+        disableRowSelectionOnClick
+        autoHeight
+      />
     </div>
   );
 };
-
 
 /* =========================================================
    CHANGE PASSWORD
@@ -644,8 +559,8 @@ const ChangePassword = () => {
   const passwordChangeHandler = async (e) => {
     e.preventDefault();
 
-    await axios
-      .put(
+    try {
+      const res = await axios.put(
         `${server}/user/update-user-password`,
         {
           oldPassword,
@@ -655,100 +570,105 @@ const ChangePassword = () => {
         {
           withCredentials: true,
         }
-      )
-      .then((res) => {
-        toast.success(res.data.message);
+      );
 
-        setOldPassword("");
-        setNewPassword("");
-        setConfirmPassword("");
-      })
-      .catch((error) => {
-        toast.error(error.response.data.message);
-      });
+      toast.success(res.data.success);
+
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Failed to update password"
+      );
+    }
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full p-5 sm:p-8">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-8 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+            Change Password
+          </h1>
 
-      {/* Heading */}
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-          Change Password
-        </h1>
-
-        <p className="mt-2 text-sm text-gray-500">
-          Keep your account secure with a strong password
-        </p>
-      </div>
-
-      {/* Form */}
-      <form
-        aria-required
-        onSubmit={passwordChangeHandler}
-        className="mx-auto w-full max-w-xl"
-      >
-
-        {/* Old Password */}
-        <div className="mb-5">
-          <label className="mb-2 block text-sm font-semibold text-gray-700">
-            Enter Your Old Password
-          </label>
-
-          <input
-            type="password"
-            required
-            value={oldPassword}
-            onChange={(e) => setOldPassword(e.target.value)}
-            placeholder="Enter old password"
-            className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-          />
+          <p className="mt-2 text-sm text-gray-500">
+            Keep your account secure by updating your password regularly.
+          </p>
         </div>
 
-        {/* New Password */}
-        <div className="mb-5">
-          <label className="mb-2 block text-sm font-semibold text-gray-700">
-            Enter Your New Password
-          </label>
-
-          <input
-            type="password"
-            required
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Enter new password"
-            className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-          />
-        </div>
-
-        {/* Confirm Password */}
-        <div className="mb-6">
-          <label className="mb-2 block text-sm font-semibold text-gray-700">
-            Confirm Your Password
-          </label>
-
-          <input
-            type="password"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Confirm new password"
-            className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-          />
-        </div>
-
-        {/* Button */}
-        <button
-          type="submit"
-          className="h-12 w-full rounded-lg bg-emerald-600 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:bg-emerald-700 hover:shadow-lg active:scale-[0.98]"
+        <form
+          onSubmit={passwordChangeHandler}
+          className="space-y-5"
         >
-          Update Password
-        </button>
-      </form>
+          <div>
+            <label
+              htmlFor="old-password"
+              className="mb-2 block text-sm font-semibold text-gray-700"
+            >
+              Enter Your Old Password
+            </label>
+
+            <input
+              id="old-password"
+              type="password"
+              className={inputClasses}
+              required
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              placeholder="Enter your old password"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="new-password"
+              className="mb-2 block text-sm font-semibold text-gray-700"
+            >
+              Enter Your New Password
+            </label>
+
+            <input
+              id="new-password"
+              type="password"
+              className={inputClasses}
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter your new password"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="confirm-password"
+              className="mb-2 block text-sm font-semibold text-gray-700"
+            >
+              Confirm Your New Password
+            </label>
+
+            <input
+              id="confirm-password"
+              type="password"
+              className={inputClasses}
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm your new password"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className={`${primaryButtonClasses} w-full sm:w-auto`}
+          >
+            Update Password
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
-
 
 /* =========================================================
    ADDRESS
@@ -758,7 +678,7 @@ const Address = () => {
   const [open, setOpen] = useState(false);
   const [country, setCountry] = useState("");
   const [city, setCity] = useState("");
-  const [zipCode, setZipCode] = useState();
+  const [zipCode, setZipCode] = useState("");
   const [address1, setAddress1] = useState("");
   const [address2, setAddress2] = useState("");
   const [addressType, setAddressType] = useState("");
@@ -781,223 +701,208 @@ const Address = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (
-      addressType === "" ||
-      country === "" ||
-      city === ""
-    ) {
+    if (!addressType || !country || !city) {
       toast.error("Please fill all the fields!");
-    } else {
-      dispatch(
-        updatUserAddress(
-          country,
-          city,
-          address1,
-          address2,
-          zipCode,
-          addressType
-        )
-      );
-
-      setOpen(false);
-      setCountry("");
-      setCity("");
-      setAddress1("");
-      setAddress2("");
-      setZipCode(null);
-      setAddressType("");
+      return;
     }
+
+    dispatch(
+      updatUserAddress(
+        country,
+        city,
+        address1,
+        address2,
+        zipCode,
+        addressType
+      )
+    );
+
+    setOpen(false);
+    setCountry("");
+    setCity("");
+    setAddress1("");
+    setAddress2("");
+    setZipCode("");
+    setAddressType("");
   };
 
   const handleDelete = (item) => {
-    const id = item._id;
-    dispatch(deleteUserAddress(id));
+    dispatch(deleteUserAddress(item._id));
   };
 
   return (
-    <div className="w-full">
-
-      {/* =================================================
-          ADD ADDRESS MODAL
-      ================================================= */}
-
+    <div className="w-full p-5 sm:p-8">
+      {/* Add Address Modal */}
       {open && (
-        <div className="fixed inset-0 z-[999] flex min-h-screen items-center justify-center bg-black/50 px-4 py-6 backdrop-blur-sm">
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-5 py-4">
+              <h2 className="text-xl font-bold text-gray-900">
+                Add New Address
+              </h2>
 
-            {/* Close */}
-            <div className="sticky top-0 z-10 flex justify-end border-b border-gray-100 bg-white p-4">
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-all hover:bg-gray-100 hover:text-red-500"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                aria-label="Close"
               >
                 <RxCross1 size={20} />
               </button>
             </div>
 
-            {/* Modal Heading */}
-            <div className="px-6 pt-4 text-center">
-              <h1 className="text-2xl font-bold text-gray-900">
-                Add New Address
-              </h1>
+            {/* Modal Form */}
+            <form onSubmit={handleSubmit} className="p-5">
+              <div className="space-y-5">
+                {/* Country */}
+                <div>
+                  <label
+                    htmlFor="country"
+                    className="mb-2 block text-sm font-semibold text-gray-700"
+                  >
+                    Country
+                  </label>
 
-              <p className="mt-1 text-sm text-gray-500">
-                Add a new delivery address to your account
-              </p>
-            </div>
+                  <select
+                    id="country"
+                    value={country}
+                    onChange={(e) => {
+                      setCountry(e.target.value);
+                      setCity("");
+                    }}
+                    className={selectClasses}
+                    required
+                  >
+                    <option value="">Choose your country</option>
 
-            {/* Address Form */}
-            <form
-              aria-required
-              onSubmit={handleSubmit}
-              className="p-6"
-            >
-
-              {/* Country */}
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Country
-                </label>
-
-                <select
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                >
-                  <option value="">
-                    Choose your country
-                  </option>
-
-                  {Country &&
-                    Country.getAllCountries().map((item) => (
-                      <option
-                        key={item.isoCode}
-                        value={item.isoCode}
-                      >
+                    {Country.getAllCountries().map((item) => (
+                      <option key={item.isoCode} value={item.isoCode}>
                         {item.name}
                       </option>
                     ))}
-                </select>
-              </div>
+                  </select>
+                </div>
 
-              {/* City */}
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Choose your City
-                </label>
+                {/* State / City */}
+                <div>
+                  <label
+                    htmlFor="city"
+                    className="mb-2 block text-sm font-semibold text-gray-700"
+                  >
+                    Choose Your City
+                  </label>
 
-                <select
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                >
-                  <option value="">
-                    Choose your city
-                  </option>
+                  <select
+                    id="city"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className={selectClasses}
+                    required
+                    disabled={!country}
+                  >
+                    <option value="">Choose your city</option>
 
-                  {State &&
-                    State.getStatesOfCountry(country).map(
-                      (item) => (
-                        <option
-                          key={item.isoCode}
-                          value={item.isoCode}
-                        >
+                    {country &&
+                      State.getStatesOfCountry(country).map((item) => (
+                        <option key={item.isoCode} value={item.isoCode}>
                           {item.name}
                         </option>
-                      )
-                    )}
-                </select>
-              </div>
+                      ))}
+                  </select>
+                </div>
 
-              {/* Address 1 */}
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Address 1
-                </label>
+                {/* Address 1 */}
+                <div>
+                  <label
+                    htmlFor="address1"
+                    className="mb-2 block text-sm font-semibold text-gray-700"
+                  >
+                    Address 1
+                  </label>
 
-                <input
-                  type="text"
-                  required
-                  value={address1}
-                  onChange={(e) =>
-                    setAddress1(e.target.value)
-                  }
-                  placeholder="Enter your address"
-                  className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                />
-              </div>
+                  <input
+                    id="address1"
+                    type="text"
+                    className={inputClasses}
+                    required
+                    value={address1}
+                    onChange={(e) => setAddress1(e.target.value)}
+                    placeholder="Enter your address"
+                  />
+                </div>
 
-              {/* Address 2 */}
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Address 2
-                </label>
+                {/* Address 2 */}
+                <div>
+                  <label
+                    htmlFor="address2"
+                    className="mb-2 block text-sm font-semibold text-gray-700"
+                  >
+                    Address 2
+                  </label>
 
-                <input
-                  type="text"
-                  required
-                  value={address2}
-                  onChange={(e) =>
-                    setAddress2(e.target.value)
-                  }
-                  placeholder="Apartment, suite, etc."
-                  className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                />
-              </div>
+                  <input
+                    id="address2"
+                    type="text"
+                    className={inputClasses}
+                    required
+                    value={address2}
+                    onChange={(e) => setAddress2(e.target.value)}
+                    placeholder="Apartment, street, etc."
+                  />
+                </div>
 
-              {/* Zip Code */}
-              <div className="mb-5">
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Zip Code
-                </label>
+                {/* Zip Code */}
+                <div>
+                  <label
+                    htmlFor="zip-code"
+                    className="mb-2 block text-sm font-semibold text-gray-700"
+                  >
+                    Zip Code
+                  </label>
 
-                <input
-                  type="number"
-                  required
-                  value={zipCode}
-                  onChange={(e) =>
-                    setZipCode(e.target.value)
-                  }
-                  placeholder="Enter zip code"
-                  className="h-12 w-full rounded-lg border border-gray-300 px-4 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                />
-              </div>
+                  <input
+                    id="zip-code"
+                    type="text"
+                    inputMode="numeric"
+                    className={inputClasses}
+                    required
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                    placeholder="Enter zip code"
+                  />
+                </div>
 
-              {/* Address Type */}
-              <div className="mb-6">
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Address Type
-                </label>
+                {/* Address Type */}
+                <div>
+                  <label
+                    htmlFor="address-type"
+                    className="mb-2 block text-sm font-semibold text-gray-700"
+                  >
+                    Address Type
+                  </label>
 
-                <select
-                  value={addressType}
-                  onChange={(e) =>
-                    setAddressType(e.target.value)
-                  }
-                  className="h-12 w-full rounded-lg border border-gray-300 bg-white px-4 text-sm text-gray-700 outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                >
-                  <option value="">
-                    Choose your Address Type
-                  </option>
+                  <select
+                    id="address-type"
+                    value={addressType}
+                    onChange={(e) => setAddressType(e.target.value)}
+                    className={selectClasses}
+                    required
+                  >
+                    <option value="">Choose your address type</option>
 
-                  {addressTypeData &&
-                    addressTypeData.map((item) => (
-                      <option
-                        key={item.name}
-                        value={item.name}
-                      >
+                    {addressTypeData.map((item) => (
+                      <option key={item.name} value={item.name}>
                         {item.name}
                       </option>
                     ))}
-                </select>
+                  </select>
+                </div>
               </div>
 
-              {/* Submit */}
               <button
                 type="submit"
-                className="h-12 w-full rounded-lg bg-emerald-600 text-sm font-semibold text-white shadow-md transition-all hover:bg-emerald-700 hover:shadow-lg active:scale-[0.98]"
+                className={`${primaryButtonClasses} mt-6 w-full`}
               >
                 Save Address
               </button>
@@ -1006,81 +911,53 @@ const Address = () => {
         </div>
       )}
 
-      {/* =================================================
-          ADDRESS HEADER
-      ================================================= */}
-
+      {/* Address Header */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold text-gray-900">
             My Addresses
           </h1>
 
           <p className="mt-1 text-sm text-gray-500">
-            Manage your saved delivery addresses
+            Manage your saved delivery addresses.
           </p>
         </div>
 
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="w-full rounded-lg bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-emerald-700 hover:shadow-lg sm:w-auto"
+          className={primaryButtonClasses}
         >
           + Add New Address
         </button>
       </div>
 
-      {/* =================================================
-          SAVED ADDRESSES
-      ================================================= */}
-
+      {/* Address List */}
       <div className="space-y-4">
-
-        {(user?.addresses ?? []).map((item, index) => (
-            <div
-              key={index}
-              className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-all duration-200 hover:border-emerald-200 hover:shadow-md lg:flex-row lg:items-center lg:justify-between"
-            >
-
+        {user?.addresses?.map((item, index) => (
+          <div
+            key={item._id || index}
+            className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-5"
+          >
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               {/* Address Type */}
-              <div className="flex items-center gap-3 lg:min-w-[130px]">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                  <span className="text-sm font-bold">
-                    {item.addressType?.charAt(0)}
-                  </span>
-                </div>
-
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                    Type
-                  </p>
-
-                  <h5 className="font-semibold text-gray-900">
-                    {item.addressType}
-                  </h5>
-                </div>
+              <div className="min-w-[120px]">
+                <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                  {item.addressType}
+                </span>
               </div>
 
               {/* Address */}
-              <div className="flex-1 lg:px-6">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                  Address
-                </p>
-
-                <p className="mt-1 text-sm leading-6 text-gray-700">
+              <div className="flex-1 lg:px-5">
+                <p className="text-sm leading-6 text-gray-700">
                   {item.address1} {item.address2}
                 </p>
               </div>
 
               {/* Phone */}
-              <div className="lg:min-w-[150px]">
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                  Phone
-                </p>
-
-                <p className="mt-1 text-sm font-medium text-gray-700">
-                  {user && user.phoneNumber}
+              <div className="lg:min-w-[140px]">
+                <p className="text-sm font-medium text-gray-600">
+                  {user?.phoneNumber}
                 </p>
               </div>
 
@@ -1089,37 +966,30 @@ const Address = () => {
                 <button
                   type="button"
                   onClick={() => handleDelete(item)}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-400 transition-all duration-200 hover:bg-red-50 hover:text-red-500"
-                  title="Delete address"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 transition-all duration-200 hover:bg-red-50 hover:text-red-600"
+                  aria-label="Delete address"
                 >
-                  <AiOutlineDelete size={21} />
+                  <AiOutlineDelete size={22} />
                 </button>
               </div>
             </div>
-          ))}
+          </div>
+        ))}
 
         {/* Empty State */}
-        {(user?.addresses ?? []).length === 0 && (
+        {user?.addresses?.length === 0 && (
           <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-12 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-200 text-gray-500">
-              <AiOutlineDelete size={24} />
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+              <AiOutlineDelete size={25} />
             </div>
 
-            <h5 className="text-lg font-semibold text-gray-800">
-              No saved addresses
-            </h5>
+            <h3 className="text-lg font-semibold text-gray-800">
+              No Saved Addresses
+            </h3>
 
             <p className="mt-1 text-sm text-gray-500">
               You don't have any saved address yet.
             </p>
-
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="mt-5 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-emerald-700"
-            >
-              Add Your First Address
-            </button>
           </div>
         )}
       </div>

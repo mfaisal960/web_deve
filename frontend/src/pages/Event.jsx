@@ -1,8 +1,11 @@
 import React from "react";
+import { useSelector } from "react-redux";
 import Header from "../components/Login/Layout/Header";
-import EventCart from "../components/Events/EventCart";
+import EventCard from "../components/Events/EventCard";
 
 const Event = () => {
+  const { allEvents = [] } = useSelector((state) => state.events);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -25,10 +28,17 @@ const Event = () => {
             </p>
           </div>
 
-          {/* Event Card Wrapper */}
-          <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition duration-300 p-4 sm:p-6 md:p-8 border border-gray-100">
-            <EventCart />
-          </div>
+          {allEvents.length > 0 ? (
+            <div className="space-y-6">
+              {allEvents.map((event) => (
+                <EventCard key={event._id || event.id} data={event} />
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-dashed border-gray-300 bg-white py-16 text-center text-gray-500">
+              No events are available right now.
+            </p>
+          )}
         </div>
       </section>
     </div>

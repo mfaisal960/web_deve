@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import Header from '../components/Login/Layout/Header'
 import { useSearchParams } from 'react-router-dom'
-import { productData } from '../static/data'
+import { useDispatch, useSelector } from 'react-redux'
+import { getAllProducts } from '../redux/actions/product'
 import ProductCard from '../components/Route/Hero/ProductCard/ProductCard'
 
 const ProductsPage = () => {
@@ -9,15 +10,29 @@ const ProductsPage = () => {
   const categoryData = searchParams.get("category")
   const [data, setData] = useState([])
 
+  const dispatch = useDispatch()
+  const { allProducts } = useSelector((state) => state.products)
+
   useEffect(() => {
-    if (categoryData === null) {
-      const d = productData && [...productData].sort((a, b) => b.total_sell - a.total_sell)
-      setData(d)
-    } else {
-      const d = productData && productData.filter((i) => i.category === categoryData)
-      setData(d)
+    if (!allProducts?.length) {
+      dispatch(getAllProducts())
     }
-  }, [categoryData])
+  }, [dispatch, allProducts?.length])
+
+  useEffect(() => {
+    const products = allProducts || []
+
+    // Newest first so the listing reflects real, shop-owned inventory.
+    const sorted = [...products].sort(
+      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    )
+
+    setData(
+      categoryData === null
+        ? sorted
+        : sorted.filter((item) => item.category === categoryData)
+    )
+  }, [categoryData, allProducts])
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -40,7 +55,7 @@ const ProductsPage = () => {
           {
             data && data.map((i, index) => (
               <div 
-                key={index} 
+                key={i._id || index} 
                 className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 p-3"
               >
                 <ProductCard data={i} />
@@ -66,5 +81,4 @@ const ProductsPage = () => {
     </div>
   )
 }
-
 export default ProductsPage

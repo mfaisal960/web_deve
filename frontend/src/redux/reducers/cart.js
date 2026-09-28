@@ -1,15 +1,34 @@
+import { createReducer } from "@reduxjs/toolkit";
+
 const initialState = {
-  cart: [],
+  cart: localStorage.getItem("cartItems")
+    ? JSON.parse(localStorage.getItem("cartItems"))
+    : [],
 };
 
-export const cartReducer = (state = initialState, action) => {
-  switch (action.type) {
-    case "ADD_TO_CART":
+export const cartReducer = createReducer(initialState, (builder) => {
+builder
+    .addCase("addToCart", (state, action) => {
+      const item = action.payload;
+      const itemId = item?._id || item?.id;
+      const isItemExist = state.cart.find(
+        (i) => (i._id || i.id) === itemId
+      );
+
+      if (isItemExist) {
+        return {
+          ...state,
+          cart: state.cart.map((i) => (i._id || i.id) === itemId ? item : i),
+        };
+      }
+
       return {
         ...state,
-        cart: [...state.cart, action.payload],
+        cart: [...state.cart, item],
       };
-    default:
-      return state;
-  }
-};
+    })
+.addCase("removeFromCart", (state, action) => ({
+      ...state,
+      cart: state.cart.filter((i) => (i._id || i.id) !== action.payload),
+    }));
+});

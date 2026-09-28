@@ -1,6 +1,6 @@
 import React from "react";
-import Footer from "../components/login/Layout/Footer";
-import Header from "../components/login/Layout/Header";
+import Footer from "../components/Login/Layout/Footer";
+import Header from "../components/Login/Layout/Header";
 
 const OrderSuccessPage = () => {
   return (

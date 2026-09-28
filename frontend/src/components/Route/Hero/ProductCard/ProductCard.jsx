@@ -2,19 +2,40 @@ import React, { useState } from "react";
 import { AiFillHeart, AiFillStar, AiOutlineEye, AiOutlineHeart, AiOutlineShoppingCart, AiOutlineStar } from "react-icons/ai";
 import { Link } from "react-router-dom";
 import ProductDetailCart from "../ProductDetailCart/ProductDetailCart";
+import { useDispatch, useSelector } from "react-redux";
+import { addToWishlist, removeFromWishlist } from "../../../../redux/actions/wishlist";
 const ProductCard = ({ data, isEvent = false }) => {
   const [click,setClick]=useState()
   const [open,setOpen]=useState()
+  const dispatch = useDispatch();
+  const { wishlist } = useSelector((state) => state.wishlist);
   const product = data || {};
   const productId = product?._id || product?.id || "product";
   const productName = product.name
     ? product.name.replace(/\s+/g, "-")
     : "product";
+  const isInWishlist = Boolean(
+    productId &&
+      wishlist?.some((i) => (i._id || i.id) === productId)
+  );
+
+  const addToWishlistHandler = (data) => {
+    dispatch(addToWishlist(data));
+  };
+
+  const removeFromWishlistHandler = (data) => {
+    dispatch(removeFromWishlist(data));
+  };
 
   const imageSrc =
+    product.images?.[0]?.url ||
     product.image_Url?.[0]?.url ||
     product.image ||
     "https://dummyimage.com/150x150/cccccc/999999?text=Product";
+
+  const currentPrice =
+    product.discountPrice ?? product.discount_price ?? product.price ?? 0;
+  const originalPrice = product.originalPrice ?? product.price ?? 0;
 
   const detailUrl = `/product/${productId}${isEvent ? "?isEvent=true" : ""}`;
 
@@ -58,10 +79,10 @@ const ProductCard = ({ data, isEvent = false }) => {
         <div className="py-2 flex items-center justify-between">
             <div className="flex">
               <h5 className="text-lg font-bold text-black mr-2">
-                {(product.price === 0 ? product.price : product.discount_price) ?? 0}$
+                {currentPrice}$
               </h5>
               <h4 className="text-sm text-red-600 line-through font-medium">
-                {product.price ? product.price + " $" : null}
+                {originalPrice > currentPrice ? originalPrice + " $" : null}
               </h4>
             </div>
             <span className="font-[400] text-[17px] text-[#68d284]">
@@ -70,17 +91,17 @@ const ProductCard = ({ data, isEvent = false }) => {
         </div>
         </Link>
         <div className="">
-          {click?(
+          {isInWishlist?(
             <AiFillHeart className="cursor-pointer absolute right-2 top-5"
             size={22}
-            onClick={()=>setClick(!click)}
-            color={click?"red":"#333"}
+            onClick={()=>removeFromWishlistHandler(product)}
+            color="red"
             title="Remove from wishlist"/>
           ):(
               <AiOutlineHeart className="cursor-pointer absolute right-2 top-5"
               size={22}
-              onClick={()=>setClick(!click)}
-              color={click?"red":"#333"}
+              onClick={()=>addToWishlistHandler(product)}
+              color="#333"
               title="Add to wishlist"/>
           )}
           <AiOutlineEye className="cursor-pointer absolute right-2 top-14"

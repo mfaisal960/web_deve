@@ -56,6 +56,12 @@ export const eventReducer = (state = initialState, action) => {
         success: false,
       };
     case "getAlleventsShopSuccess":
+      return {
+        ...state,
+        events: action.payload,
+        loading: false,
+        success: false,
+      };
     case "getAllEventsSuccess":
       return {
         ...state,

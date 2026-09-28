@@ -4,6 +4,7 @@ const User = require("../model/user");
 const { upload } = require("../multer");
 const ErrorHandler = require("../utils/ErrorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
+const { isAuthenticated } = require("../middleware/auth");
 const sendMail = require("../utils/sendMail");
 
 const router = express.Router();
@@ -33,12 +34,16 @@ router.post(
     // Create user
     const filename = req.file.filename;
     const fileUrl = `uploads/${filename}`;
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
 
     const user = await User.create({
       name,
       email,
       password,
-      avatar: fileUrl,
+      avatar: {
+        public_id: filename.replace(/\.[^.]+$/, ""),
+        url: `${baseUrl}/${fileUrl}`,
+      },
     });
 
     const activationToken = jwt.sign(
@@ -101,6 +106,16 @@ router.post(
       return next(new ErrorHandler("Invalid email or password", 401));
     }
 
+    // Authenticated routes (isAuthenticated) read the "token" cookie, so it has
+    // to be set here. The response is sanitised below because the document was
+    // loaded with .select("+password") and would otherwise leak the hash.
+    const token = user.getJwtToken();
+
+    res.cookie("token", token, {
+      expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      httpOnly: true,
+    });
+
     res.status(200).json({
       success: true,
       message: "Login successful",
@@ -124,19 +139,17 @@ router.get("/logout", (req, res) => {
 });
 
 // ==================== GET USER ====================
+// Returns the account that owns the session cookie. It used to return
+// User.findOne() regardless of the session, which made every visitor look
+// logged in and produced 401s on authenticated routes such as
+// GET /order/get-all-orders/:userId.
 router.get(
   "/getuser",
+  isAuthenticated,
   catchAsyncErrors(async (req, res, next) => {
-    // demo purpose: first user return کر رہا ہے
-    const user = await User.findOne();
-
-    if (!user) {
-      return next(new ErrorHandler("No user found", 404));
-    }
-
     res.status(200).json({
       success: true,
-      user,
+      user: req.user,
     });
   })
 );
@@ -144,21 +157,36 @@ router.get(
 // ==================== UPDATE USER INFORMATION ====================
 router.put(
   "/update-user-info",
+  isAuthenticated,
   catchAsyncErrors(async (req, res, next) => {
     const { name, email, phoneNumber, password } = req.body;
-    const user = await User.findOne().select("+password");
+    const user = await User.findById(req.user._id).select("+password");
 
     if (!user) {
       return next(new ErrorHandler("User not found", 404));
     }
 
-    if (!name || !email || !phoneNumber) {
+    if (!name || !name.trim()) {
       return next(new ErrorHandler("Please fill all fields", 400));
+    }
+
+    if (!email || !email.trim()) {
+      return next(new ErrorHandler("Please fill all fields", 400));
+    }
+
+    if (phoneNumber != null && !String(phoneNumber).trim()) {
+      return next(new ErrorHandler("Please provide a valid phone number", 400));
+    }
+
+    if (password && password.length < 4) {
+      return next(
+        new ErrorHandler("Password should be greater than 4 characters", 400)
+      );
     }
 
     user.name = name;
     user.email = email;
-    user.phoneNumber = phoneNumber;
+    user.phoneNumber = phoneNumber != null ? String(phoneNumber).trim() : user.phoneNumber;
     if (password) {
       user.password = password;
     }
@@ -178,9 +206,10 @@ router.put(
 // ==================== UPDATE USER PASSWORD ====================
 router.put(
   "/update-user-password",
+  isAuthenticated,
   catchAsyncErrors(async (req, res, next) => {
     const { oldPassword, newPassword, confirmPassword } = req.body;
-    const user = await User.findOne().select("+password");
+    const user = await User.findById(req.user._id).select("+password");
 
     if (!user) {
       return next(new ErrorHandler("User not found", 404));
@@ -216,9 +245,10 @@ router.put(
 // ==================== UPDATE AVATAR ====================
 router.put(
   "/update-avatar",
+  isAuthenticated,
   catchAsyncErrors(async (req, res, next) => {
     const { avatar } = req.body;
-    const user = await User.findOne();
+    const user = await User.findById(req.user._id);
 
     if (!user) {
       return next(new ErrorHandler("User not found", 404));
@@ -228,7 +258,10 @@ router.put(
       return next(new ErrorHandler("Avatar image is required", 400));
     }
 
-    user.avatar = avatar;
+    user.avatar = {
+      public_id: "avatar-" + user._id,
+      url: avatar,
+    };
     await user.save();
 
     res.status(200).json({
@@ -240,11 +273,12 @@ router.put(
 );
 
 // ==================== USER ADDRESSES ====================
-router.post(
+router.put(
   "/update-user-addresses",
+  isAuthenticated,
   catchAsyncErrors(async (req, res, next) => {
     const { address1, address2, country, city, zipCode, addressType } = req.body;
-    const user = await User.findOne();
+    const user = await User.findById(req.user._id);
 
     if (!user) {
       return next(new ErrorHandler("User not found", 404));
@@ -267,8 +301,9 @@ router.post(
 
 router.delete(
   "/delete-user-address/:id",
+  isAuthenticated,
   catchAsyncErrors(async (req, res, next) => {
-    const user = await User.findOne();
+    const user = await User.findById(req.user._id);
 
     if (!user) {
       return next(new ErrorHandler("User not found", 404));

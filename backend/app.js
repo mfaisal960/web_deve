@@ -12,9 +12,24 @@ if (process.env.NODE_ENV !== "PRODUCTION") {
 
 const app = express();
 
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+// Accept both schemes: the Vite dev server switches to https://localhost:5173
+// when VITE_DEV_HTTPS=true (required for Stripe pk_live_ keys).
+const allowedOrigins = new Set([
+  frontendUrl,
+  frontendUrl.replace(/^http:/, "https:"),
+]);
+
 app.use(
   cors({
-    origin: "http://localhost:5173", // Vite frontend
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
     credentials: true,
   })
 );
@@ -28,15 +43,21 @@ app.use(bodyParser.urlencoded({ extended: true, limit: "20mb" }));
 
 // routes
 const userRouter = require("./routes/user");
+const cartRouter = require("./routes/cart");
 const shopRouter = require("./controller/shop");
 const productRouter = require("./controller/product");
 const eventRouter = require("./controller/event");
 const couponRouter = require("./controller/coupounCode");
+const paymentRouter = require("./routes/payment");
+const orderRouter = require("./routes/order");
 app.use("/api/v2/user", userRouter);
+app.use("/api/v2/cart", cartRouter);
 app.use("/api/v2/shop", shopRouter);
 app.use("/api/v2/product", productRouter);
 app.use("/api/v2/event", eventRouter);
 app.use("/api/v2/coupon", couponRouter);
+app.use("/api/v2/payment", paymentRouter);
+app.use("/api/v2/order", orderRouter);
 // error middleware
 const errorMiddleware = require("./middleware/error");
 app.use(errorMiddleware);

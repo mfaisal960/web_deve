@@ -1,226 +1,259 @@
+
 import React, { useState } from "react";
 import { RxCross1 } from "react-icons/rx";
-import { HiOutlineMinus, HiPlus } from "react-icons/hi";
 import { IoBagHandleOutline } from "react-icons/io5";
+import { HiOutlineMinus, HiPlus } from "react-icons/hi";
+import { Link } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { addTocart, removeFromCart } from "../../redux/actions/cart";
+import { toast } from "react-toastify";
+
+const getItemPrice = (item) =>
+  item?.discountPrice ?? item?.discount_price ?? item?.price ?? 0;
+
+const getItemQty = (item) => item?.qty ?? 1;
 
 const Cart = ({ setOpenCart }) => {
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      name: "iPhone 14 Pro Max",
-      price: 120000,
-      qty: 1,
-      image:
-        "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=500",
-      description: "Latest Apple flagship smartphone.",
-    },
-    {
-      id: 2,
-      name: "Samsung Galaxy S24 Ultra",
-      price: 140000,
-      qty: 1,
-      image:
-        "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=500",
-      description: "Premium Android smartphone.",
-    },
-    {
-      id: 3,
-      name: "Google Pixel 9",
-      price: 160000,
-      qty: 1,
-      image:
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=500",
-      description: "Pure Android experience.",
-    },
-  ]);
+  const { cart } = useSelector((state) => state.cart);
+  const dispatch = useDispatch();
 
-  const increaseQty = (id) => {
-    setCartItems((items) =>
-      items.map((item) =>
-        item.id === id ? { ...item, qty: item.qty + 1 } : item
-      )
-    );
+  const removeFromCartHandler = (data) => {
+    dispatch(removeFromCart(data));
   };
 
-  const decreaseQty = (id) => {
-    setCartItems((items) =>
-      items.map((item) =>
-        item.id === id
-          ? { ...item, qty: item.qty > 1 ? item.qty - 1 : 1 }
-          : item
-      )
-    );
-  };
-
-  const removeItem = (id) => {
-    setCartItems((items) => items.filter((item) => item.id !== id));
-  };
-
-  const totalAmount = cartItems.reduce(
-    (acc, item) => acc + item.price * item.qty,
+  const totalPrice = cart.reduce(
+    (acc, item) => acc + getItemPrice(item) * getItemQty(item),
     0
   );
 
+  const quantityChangeHandler = (data) => {
+    dispatch(addTocart(data));
+  };
+
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
-      onClick={() => setOpenCart(false)}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="absolute top-0 right-0 h-screen w-full sm:w-[430px] bg-white shadow-2xl flex flex-col"
-      >
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b px-6 py-5 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-blue-100">
-              <IoBagHandleOutline className="text-2xl text-blue-600" />
-            </div>
-
-            <div>
-              <h2 className="font-bold text-xl">Shopping Cart</h2>
-              <p className="text-gray-500 text-sm">
-                {cartItems.length} Items
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setOpenCart(false)}
-            className="p-2 hover:bg-gray-100 rounded-lg"
-          >
-            <RxCross1 size={22} />
-          </button>
-        </div>
-
-        {/* Items */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {cartItems.length === 0 ? (
-            <div className="h-full flex items-center justify-center">
-              <h2 className="text-lg text-gray-500">
-                Your cart is empty
-              </h2>
-            </div>
-          ) : (
-            cartItems.map((item) => (
-              <CartItem
-                key={item.id}
-                item={item}
-                increaseQty={increaseQty}
-                decreaseQty={decreaseQty}
-                removeItem={removeItem}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Footer */}
-        {cartItems.length > 0 && (
-          <div className="border-t bg-gray-50 p-5">
-            <div className="space-y-3 mb-5">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="font-medium">
-                  Rs. {totalAmount.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-gray-600">Shipping</span>
-                <span className="font-medium">Free</span>
-              </div>
-
-              <div className="border-t pt-3 flex justify-between">
-                <span className="font-bold text-lg">Total</span>
-                <span className="font-bold text-xl text-blue-600">
-                  Rs. {totalAmount.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <button className="w-full py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">
-              Proceed To Checkout
+    <div className="fixed inset-0 z-50 h-screen w-full bg-black/50 backdrop-blur-sm">
+      <div className="fixed right-0 top-0 flex h-full w-[90%] max-w-md flex-col justify-between overflow-hidden bg-white shadow-2xl sm:w-[80%] 800px:w-[400px]">
+        
+        {/* ================= EMPTY CART ================= */}
+        {cart && cart.length === 0 ? (
+          <div className="flex h-full w-full flex-col items-center justify-center px-6">
+            
+            {/* Close */}
+            <button
+              type="button"
+              className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all duration-200 hover:bg-red-50 hover:text-red-500"
+              onClick={() => setOpenCart(false)}
+            >
+              <RxCross1 size={20} />
             </button>
 
-            <button className="w-full py-3 mt-3 rounded-xl border border-gray-300 hover:bg-gray-100 transition">
+            {/* Empty Cart Icon */}
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-red-50">
+              <IoBagHandleOutline size={38} className="text-red-500" />
+            </div>
+
+            <h5 className="mt-5 text-lg font-semibold text-gray-800">
+              Your cart is empty
+            </h5>
+
+            <p className="mt-2 text-center text-sm text-gray-500">
+              Looks like you haven't added anything to your cart yet.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setOpenCart(false)}
+              className="mt-6 rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-red-100 transition-all duration-200 hover:bg-red-700 active:scale-95"
+            >
               Continue Shopping
             </button>
           </div>
+        ) : (
+          <>
+            {/* ================= CART CONTENT ================= */}
+            <div className="flex min-h-0 flex-1 flex-col">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-gray-100 px-5 py-5">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50">
+                    <IoBagHandleOutline
+                      size={22}
+                      className="text-red-600"
+                    />
+                  </div>
+
+                  <div>
+                    <h5 className="text-lg font-bold text-gray-900">
+                      Shopping Cart
+                    </h5>
+
+                    <p className="text-xs text-gray-500">
+                      {cart.length} {cart.length === 1 ? "item" : "items"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-all duration-200 hover:bg-red-50 hover:text-red-500"
+                  onClick={() => setOpenCart(false)}
+                >
+                  <RxCross1 size={18} />
+                </button>
+              </div>
+
+              {/* Cart Items */}
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {cart &&
+                  cart.map((i, index) => (
+                    <CartSingle
+                      key={index}
+                      data={i}
+                      quantityChangeHandler={quantityChangeHandler}
+                      removeFromCartHandler={removeFromCartHandler}
+                    />
+                  ))}
+              </div>
+            </div>
+
+            {/* ================= CHECKOUT ================= */}
+            <div className="border-t border-gray-100 bg-white p-5 shadow-[0_-4px_15px_rgba(0,0,0,0.04)]">
+              
+              {/* Total */}
+              <div className="mb-4 flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-500">
+                  Total Amount
+                </span>
+
+                <span className="text-xl font-bold text-gray-900">
+                  USD ${totalPrice.toFixed(2)}
+                </span>
+              </div>
+
+              {/* Checkout Button */}
+              <Link
+                to="/checkout"
+                className="flex h-12 w-full items-center justify-center rounded-xl bg-red-600 text-sm font-semibold text-white shadow-lg shadow-red-100 transition-all duration-200 hover:bg-red-700 active:scale-[0.98]"
+              >
+                Checkout Now
+              </Link>
+
+              <p className="mt-3 text-center text-xs text-gray-400">
+                Secure checkout • Fast delivery
+              </p>
+            </div>
+          </>
         )}
       </div>
     </div>
   );
 };
 
-const CartItem = ({
-  item,
-  increaseQty,
-  decreaseQty,
-  removeItem,
+const CartSingle = ({
+  data,
+  quantityChangeHandler,
+  removeFromCartHandler,
 }) => {
+  const [value, setValue] = useState(getItemQty(data));
+
+  const totalPrice = getItemPrice(data) * value;
+
+  const increment = (data) => {
+    if (data.stock <= value) {
+      toast.error("Product stock limited!");
+    } else {
+      setValue(value + 1);
+
+      const updateCartData = {
+        ...data,
+        qty: value + 1,
+      };
+
+      quantityChangeHandler(updateCartData);
+    }
+  };
+
+  const decrement = (data) => {
+    const newValue = value === 1 ? 1 : value - 1;
+
+    setValue(newValue);
+
+    const updateCartData = {
+      ...data,
+      qty: newValue,
+    };
+
+    quantityChangeHandler(updateCartData);
+  };
+
   return (
-    <div className="bg-white border rounded-2xl p-4 shadow-sm hover:shadow-lg transition">
-      <div className="flex gap-4">
-        {/* Image */}
-        <div className="relative">
-          <img
-            src={item.image}
-            alt={item.name}
-            className="w-24 h-24 object-cover rounded-xl"
-          />
-
+    <div className="border-b border-gray-100 p-4 transition-colors duration-200 hover:bg-gray-50">
+      <div className="flex gap-3">
+        
+        {/* Quantity Controls */}
+        <div className="flex flex-col items-center justify-center">
           <button
-            onClick={() => removeItem(item.id)}
-            className="absolute -top-2 -right-2 bg-white p-1 rounded-full shadow hover:bg-red-50"
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-red-600 text-white shadow-sm transition-all duration-200 hover:bg-red-700 active:scale-90"
+            onClick={() => increment(data)}
           >
-            <RxCross1 className="text-red-500" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-800">
-            {item.name}
-          </h3>
-
-          <p className="text-sm text-gray-500 mt-1">
-            {item.description}
-          </p>
-
-          <div className="mt-3 flex justify-between items-center">
-            <span className="font-medium text-gray-700">
-              Rs. {item.price.toLocaleString()}
-            </span>
-
-            <span className="font-bold text-blue-600">
-              Rs. {(item.price * item.qty).toLocaleString()}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Quantity */}
-      <div className="mt-4 flex items-center justify-between bg-gray-50 rounded-xl p-2">
-        <span className="text-sm font-medium">Quantity</span>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => decreaseQty(item.id)}
-            className="w-9 h-9 flex items-center justify-center rounded-lg border hover:bg-gray-100"
-          >
-            <HiOutlineMinus />
+            <HiPlus size={14} />
           </button>
 
-          <span className="w-10 text-center font-semibold">
-            {item.qty}
+          <span className="my-1 text-sm font-semibold text-gray-700">
+            {data.qty}
           </span>
 
           <button
-            onClick={() => increaseQty(item.id)}
-            className="w-9 h-9 flex items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+            type="button"
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-all duration-200 hover:bg-gray-200 active:scale-90"
+            onClick={() => decrement(data)}
           >
-            <HiPlus />
+            <HiOutlineMinus size={14} />
           </button>
+        </div>
+
+        {/* Product Image */}
+        <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-gray-100">
+          <img
+            src={
+              data?.images?.[0]?.url ||
+              data?.image_Url?.[0]?.url ||
+              data?.image ||
+              "https://dummyimage.com/150x150/cccccc/999999?text=No+Image"
+            }
+            alt={data.name}
+            className="h-full w-full object-cover"
+          />
+        </div>
+
+        {/* Product Details */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="line-clamp-2 text-sm font-semibold leading-5 text-gray-800">
+              {data.name}
+            </h1>
+
+            {/* Remove */}
+            <button
+              type="button"
+              className="flex-shrink-0 text-gray-400 transition-colors hover:text-red-500"
+              onClick={() => removeFromCartHandler(data)}
+              title="Remove item"
+            >
+              <RxCross1 size={16} />
+            </button>
+          </div>
+
+          <p className="mt-1 text-xs text-gray-400">
+            ${getItemPrice(data)} × {value}
+          </p>
+
+          <p className="mt-1 text-sm font-bold text-red-600">
+            USD ${totalPrice.toFixed(2)}
+          </p>
         </div>
       </div>
     </div>

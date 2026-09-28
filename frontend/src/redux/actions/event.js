@@ -74,18 +74,18 @@ export const deleteEvent = (id) => async (dispatch) => {
 export const getAllEvents = () => async (dispatch) => {
   try {
     dispatch({
-      type: "getAlleventsRequest",
+      type: "getAllEventsRequest",
     });
 
     const { data } = await axios.get(`${server}/event/get-all-events`);
     dispatch({
-      type: "getAlleventsSuccess",
+      type: "getAllEventsSuccess",
       payload: data.events,
     });
   } catch (error) {
     dispatch({
-      type: "getAlleventsFailed",
-      payload: error.response.data.message,
+      type: "getAllEventsFailed",
+      payload: error.response?.data?.message || "Failed to fetch events",
     });
   }
 };

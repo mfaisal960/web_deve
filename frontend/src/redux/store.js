@@ -7,6 +7,8 @@ import { eventReducer } from './reducers/events'
 import { orderReducer } from './reducers/order'
 import { sellerReducer } from './reducers/seller'
 
+
+
 const Store = configureStore({
   reducer: {
     user: userReducer,
@@ -16,6 +18,7 @@ const Store = configureStore({
     events: eventReducer,
     order: orderReducer,
     seller: sellerReducer,
+
   },
 })
 

@@ -16,7 +16,7 @@ const DashboardHeader = () => {
       <div className="flex items-center flex-shrink-0">
         <Link to="/dashboard">
           <img
-            src="https://shopo.quomodothemes.website/assets/images/logo.svg"
+            src="/logo.svg"
             alt="Shop logo"
             className="h-8 w-auto sm:h-10"
           />
