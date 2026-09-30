@@ -10,9 +10,11 @@ export const userReducer = createReducer(initialState, (builder) => {
       state.loading = true;
     })
     .addCase("LoadUserSuccess", (state, action) => {
-      state.isAuthenticated = true;
+      // A null payload means the backend reported that nobody is signed in.
       state.loading = false;
+      state.error = null;
       state.user = action.payload;
+      state.isAuthenticated = Boolean(action.payload);
     })
     .addCase("LoadUserFail", (state, action) => {
       state.loading = false;

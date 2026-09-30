@@ -9,7 +9,9 @@ import { deleteProduct } from "../../redux/actions/product";
 import Loader from "../Login/Layout/Loader";
 
 const AllProducts = () => {
-  const { products, isLoading } = useSelector((state) => state.products);
+  const { products, shopProductsLoading } = useSelector(
+    (state) => state.products
+  );
   const { seller } = useSelector((state) => state.seller);
 
   const dispatch = useDispatch();
@@ -114,7 +116,7 @@ const AllProducts = () => {
 
   return (
     <>
-      {isLoading ? (
+      {shopProductsLoading ? (
         <Loader />
       ) : (
         <div className="w-full mx-8 pt-1 mt-10 bg-white">

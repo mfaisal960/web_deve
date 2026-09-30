@@ -10,16 +10,19 @@ import { toast } from "react-toastify";
 const ShopSettings = () => {
   const { seller } = useSelector((state) => state.seller);
 
-  const [avatar, setAvatar] = useState();
-  const [name, setName] = useState(seller && seller.name);
-  const [description, setDescription] = useState(
-    seller && seller.description ? seller.description : ""
-  );
-  const [address, setAddress] = useState(seller && seller.address);
+  // These are bound to inputs, so they must be strings from the first render.
+  // `seller && seller.name` is undefined while the seller is still loading, which
+  // turns the inputs uncontrolled and makes React warn once the seller arrives.
+  const [avatar, setAvatar] = useState("");
+  const [name, setName] = useState(seller?.name ?? "");
+  const [description, setDescription] = useState(seller?.description ?? "");
+  const [address, setAddress] = useState(seller?.address ?? "");
   const [phoneNumber, setPhoneNumber] = useState(
-    seller && seller.phoneNumber
+    seller?.phoneNumber != null ? String(seller.phoneNumber) : ""
   );
-  const [zipCode, setZipcode] = useState(seller && seller.zipCode);
+  const [zipCode, setZipcode] = useState(
+    seller?.zipCode != null ? String(seller.zipCode) : ""
+  );
 
   const dispatch = useDispatch();
 
@@ -41,12 +44,14 @@ const ShopSettings = () => {
               withCredentials: true,
             }
           )
-          .then((res) => {
+          .then(() => {
             dispatch(loadSeller());
             toast.success("Avatar updated successfully!");
           })
           .catch((error) => {
-            toast.error(error.response.data.message);
+            toast.error(
+              error?.response?.data?.message || "Unable to update the avatar!"
+            );
           });
       }
     };
@@ -69,12 +74,14 @@ const ShopSettings = () => {
         },
         { withCredentials: true }
       )
-      .then((res) => {
+      .then(() => {
         toast.success("Shop info updated succesfully!");
         dispatch(loadSeller());
       })
       .catch((error) => {
-        toast.error(error.response.data.message);
+        toast.error(
+          error?.response?.data?.message || "Unable to update the shop info!"
+        );
       });
   };
 
@@ -86,7 +93,7 @@ const ShopSettings = () => {
           <div className="relative">
             <div className="h-36 w-36 overflow-hidden rounded-full border-4 border-white bg-gray-100 shadow-lg sm:h-44 sm:w-44">
               <img
-                src={avatar ? avatar : `${seller.avatar?.url}`}
+                src={avatar || seller?.avatar?.url || ""}
                 alt="Shop avatar"
                 className="h-full w-full object-cover"
               />

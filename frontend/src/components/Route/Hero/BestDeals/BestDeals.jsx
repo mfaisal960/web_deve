@@ -1,44 +1,47 @@
-import React, { useEffect, useMemo } from 'react'
-import { useSelector } from 'react-redux'
-import ProductCard from '../ProductCard/ProductCard'
+import React, { useMemo } from "react";
+import { useSelector } from "react-redux";
+import ProductCard from "../ProductCard/ProductCard";
+import { mergeCatalog } from "../../../../utils/catalog";
+
+const DISPLAY_COUNT = 15;
 
 const BestDeals = () => {
-  const { allProducts } = useSelector((state) => state.products)
+  const { allProducts } = useSelector((state) => state.products);
 
   const data = useMemo(() => {
-    const products = allProducts || []
+    const catalog = mergeCatalog(allProducts);
 
-    // Highest discount first, so "Best Deals" reflects real shop inventory.
-    return [...products]
-      .sort((a, b) => discount(b) - discount(a))
-      .slice(0, 5)
-  }, [allProducts])
-
-  useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
+    // Rank across the whole merged catalogue so real shop products and the
+    // bundled demo items compete on the same measure. createdAt only breaks
+    // ties, and local entries have none.
+    return catalog
+      .sort(
+        (a, b) =>
+          (b.sold_out || 0) - (a.sold_out || 0) ||
+          new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+      )
+      .slice(0, DISPLAY_COUNT);
+  }, [allProducts]);
 
   return (
-    <section className="my-10 px-4 md:px-8 lg:px-16">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl md:text-3xl font-bold text-gray-800">Best Deals</h2>
-        <p className="text-sm text-gray-500">Top selling products this week</p>
-      </div>
+    <div className="w-full">
+      <section className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* Heading */}
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+            Best Deals
+          </h1>
+        </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-        {data?.map((item, index) => (
-          <ProductCard data={item} key={item._id || index} />
-        ))}
-      </div>
-    </section>
-  )
-}
+        {/* Products */}
+        <div className="mb-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 xl:gap-7">
+          {data.map((item) => (
+            <ProductCard data={item} key={item._id || item.id} />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+};
 
-function discount(product) {
-  const original = product?.originalPrice ?? product?.price ?? 0
-  const current = product?.discountPrice ?? product?.discount_price ?? 0
-
-  return original > 0 ? (original - current) / original : 0
-}
-
-export default BestDeals 
+export default BestDeals;

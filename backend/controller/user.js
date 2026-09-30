@@ -6,6 +6,7 @@ const ErrorHandler = require("../utils/ErrorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const jwt = require("jsonwebtoken");
 const sendMail = require("../utils/sendMail");
+const { userActivationTemplate } = require("../utils/mailTemplates");
 const sendToken = require("../utils/jwtToken");
 const { isAuthenticated, isAdmin } = require("../middleware/auth");
 
@@ -37,11 +38,17 @@ router.post("/create-user", async (req, res, next) => {
 
     const activationUrl = `https://eshop-tutorial-pyri.vercel.app/activation/${activationToken}`;
 
+    const { subject, message, html } = userActivationTemplate({
+      userName: user.name,
+      activationUrl,
+    });
+
     try {
       await sendMail({
         email: user.email,
-        subject: "Activate your account",
-        message: `Hello ${user.name}, please click on the link to activate your account: ${activationUrl}`,
+        subject,
+        message,
+        html,
       });
       res.status(201).json({
         success: true,

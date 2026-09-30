@@ -10,6 +10,7 @@ import {
   AiOutlineCheckCircle,
 } from "react-icons/ai";
 import { getOrderById } from "../../redux/actions/order";
+import OrderStatusButton from "../Order/OrderStatusButton";
 import Loader from "../Login/Layout/Loader";
 
 const FALLBACK_IMAGE =
@@ -215,6 +216,11 @@ const OrderDetails = () => {
               ))}
             </div>
           )}
+        </div>
+
+        {/* Order Status */}
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+          <OrderStatusButton orderId={order._id} status={order.status} />
         </div>
 
         {/* Payment & Total */}

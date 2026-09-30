@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import Header from '../components/Login/Layout/Header'
 import { useSearchParams } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
@@ -8,7 +8,6 @@ import ProductCard from '../components/Route/Hero/ProductCard/ProductCard'
 const ProductsPage = () => {
   const [searchParams] = useSearchParams()
   const categoryData = searchParams.get("category")
-  const [data, setData] = useState([])
 
   const dispatch = useDispatch()
   const { allProducts } = useSelector((state) => state.products)
@@ -19,19 +18,18 @@ const ProductsPage = () => {
     }
   }, [dispatch, allProducts?.length])
 
-  useEffect(() => {
+  // The listing is derived from the store, newest first, so it can never go out
+  // of sync with the products slice.
+  const data = useMemo(() => {
     const products = allProducts || []
 
-    // Newest first so the listing reflects real, shop-owned inventory.
     const sorted = [...products].sort(
       (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
     )
 
-    setData(
-      categoryData === null
-        ? sorted
-        : sorted.filter((item) => item.category === categoryData)
-    )
+    return categoryData === null
+      ? sorted
+      : sorted.filter((item) => item.category === categoryData)
   }, [categoryData, allProducts])
 
   return (

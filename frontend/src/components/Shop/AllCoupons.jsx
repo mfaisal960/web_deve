@@ -5,7 +5,7 @@ import axios from "axios";
 import React, { useEffect, useState } from "react";
 import { AiOutlineDelete } from "react-icons/ai";
 import { RxCross1 } from "react-icons/rx";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import Loader from "../Login/Layout/Loader";
 import { server } from "../../server";
 import { toast } from "react-toastify";
@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 const AllCoupons = () => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [coupouns, setCoupouns] = useState([]);
   const [minAmount, setMinAmout] = useState(null);
   const [maxAmount, setMaxAmount] = useState(null);
@@ -23,34 +23,59 @@ const AllCoupons = () => {
   const { seller } = useSelector((state) => state.seller);
   const { products } = useSelector((state) => state.products);
 
-  const dispatch = useDispatch();
 
   useEffect(() => {
-    setIsLoading(true);
+    const shopId = seller?._id;
+
+    if (!shopId) {
+      return;
+    }
+
+    let cancelled = false;
 
     axios
-      .get(`${server}/coupon/get-coupon/${seller._id}`, {
+      .get(`${server}/coupon/get-coupon/${shopId}`, {
         withCredentials: true,
       })
       .then((res) => {
-        setIsLoading(false);
-        setCoupouns(res.data.couponCodes);
+        if (!cancelled) {
+          setCoupouns(res.data.couponCodes || []);
+        }
       })
       .catch((error) => {
-        setIsLoading(false);
+        if (!cancelled) {
+          toast.error(
+            error?.response?.data?.message || "Unable to load coupon codes!"
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       });
-  }, [dispatch]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [seller?._id]);
+
+  // Without a shop there is nothing to load, so the loader is never shown.
+  const isCouponsLoading = isLoading && Boolean(seller?._id);
 
   const handleDelete = async (id) => {
-    axios
-      .delete(`${server}/coupon/delete-coupon/${id}`, {
+    try {
+      await axios.delete(`${server}/coupon/delete-coupon/${id}`, {
         withCredentials: true,
-      })
-      .then((res) => {
-        toast.success("Coupon code deleted successfully!");
       });
 
-    window.location.reload();
+      toast.success("Coupon code deleted successfully!");
+      window.location.reload();
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Unable to delete the coupon code!"
+      );
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -69,13 +94,15 @@ const AllCoupons = () => {
         },
         { withCredentials: true }
       )
-      .then((res) => {
+      .then(() => {
         toast.success("Coupon code created successfully!");
         setOpen(false);
         window.location.reload();
       })
       .catch((error) => {
-        toast.error(error.response.data.message);
+        toast.error(
+          error?.response?.data?.message || "Unable to create the coupon code!"
+        );
       });
   };
 
@@ -134,7 +161,7 @@ const AllCoupons = () => {
 
   return (
     <>
-      {isLoading ? (
+      {isCouponsLoading ? (
         <Loader />
       ) : (
         <div className="w-full min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 py-6">

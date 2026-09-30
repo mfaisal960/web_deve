@@ -161,7 +161,13 @@ const CartSingle = ({
   const totalPrice = getItemPrice(data) * value;
 
   const increment = (data) => {
-    if (data.stock <= value) {
+    // A listing with no stock recorded is unknown, not empty, so it is not a
+    // reason to block the quantity bump.
+    const hasStock =
+      data.stock !== undefined && data.stock !== null && data.stock !== "";
+    const stock = Number(data.stock);
+
+    if (hasStock && Number.isFinite(stock) && stock <= value) {
       toast.error("Product stock limited!");
     } else {
       setValue(value + 1);

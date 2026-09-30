@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { addTocart } from "../../../../redux/actions/cart";
+
 import {
   addToWishlist,
   removeFromWishlist,
@@ -61,19 +62,31 @@ const ProductDetailsCard = ({ setOpen, data }) => {
   };
 
   const addToCartHandler = (id) => {
-    const isItemExists = cart && cart.find((i) => (i._id || i.id) === id);
+    const isItemExists = cart?.some(
+      (i) => String(i._id || i.id) === String(id)
+    );
 
     if (isItemExists) {
       toast.error("Item already in cart!");
-    } else {
-      if (data.stock < count) {
-        toast.error("Product stock limited!");
-      } else {
-        const cartData = { ...data, qty: count };
-        dispatch(addTocart(cartData));
-        toast.success("Item added to cart successfully!");
-      }
+      return;
     }
+
+    // A listing with no stock recorded is unknown, not empty. Only a known
+    // stock below the requested quantity is a real refusal.
+    const hasStock = data.stock !== undefined && data.stock !== null && data.stock !== "";
+    const stock = Number(data.stock);
+
+    if (hasStock && Number.isFinite(stock) && stock < count) {
+      toast.error(
+        stock < 1
+          ? "Product stock limited!"
+          : `Only ${stock} left in stock.`
+      );
+      return;
+    }
+
+    dispatch(addTocart({ ...data, qty: count }));
+    toast.success("Item added to cart successfully!");
   };
 
   const removeFromWishlistHandler = (data) => {
@@ -261,7 +274,7 @@ const ProductDetailsCard = ({ setOpen, data }) => {
                 {/* Add To Cart */}
                 <button
                   type="button"
-                  className="mt-7 flex h-12 w-full items-center justify-center rounded-xl bg-red-600 px-6 text-sm font-semibold text-white shadow-lg shadow-red-100 transition-all duration-200 hover:bg-red-700 active:scale-[0.98]"
+                  className="mt-7 flex h-12 w-full items-center justify-center rounded-xl px-6 text-sm font-semibold text-white shadow-lg transition-all duration-200 bg-red-600 shadow-red-100 hover:bg-red-700 active:scale-[0.98]"
                   onClick={() => addToCartHandler(data._id ?? data.id)}
                 >
                   <span className="flex items-center gap-2">

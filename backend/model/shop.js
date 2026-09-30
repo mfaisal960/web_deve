@@ -10,8 +10,6 @@ const shopSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, "Please enter your shop email address"],
-    lowercase: true,
-    trim: true,
   },
   password: {
     type: String,
@@ -33,6 +31,12 @@ const shopSchema = new mongoose.Schema({
   role: {
     type: String,
     default: "Seller",
+  },
+  // A shop is created by POST /create-shop but stays unusable until the seller
+  // opens the emailed activation link, which sets this flag and signs them in.
+  isActivated: {
+    type: Boolean,
+    default: false,
   },
   avatar: {
     public_id: {
@@ -83,16 +87,23 @@ const shopSchema = new mongoose.Schema({
 });
 
 // Hash password
+// This hook must stay promise-based. Mongoose never passes a `next` callback to
+// an async hook, so the previous `async function (next)` shape only worked while
+// the password was being set (Shop.create). Every later save - activating the
+// shop, updating the seller info - skipped the branch and called an undefined
+// next(), throwing "TypeError: next is not a function" and answering 500.
 shopSchema.pre("save", async function () {
-  if (this.isModified("password")) {
-    this.password = await bcrypt.hash(this.password, 10);
+  if (!this.isModified("password")) {
+    return;
   }
+
+  this.password = await bcrypt.hash(this.password, 10);
 });
 
 // jwt token
 shopSchema.methods.getJwtToken = function () {
   return jwt.sign({ id: this._id }, process.env.JWT_SECRET_KEY, {
-    expiresIn: process.env.JWT_EXPIRES || "90d",
+    expiresIn: process.env.JWT_EXPIRES,
   });
 };
 

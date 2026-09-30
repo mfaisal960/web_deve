@@ -24,16 +24,57 @@ exports.isAuthenticated=catchAsyncErrors(async(req,res,next)=>{
     next();
 })
 
+// Same check as isAuthenticated, except that a signed-out visitor is not an
+// error: it simply leaves req.user empty and calls next(). Only for endpoints
+// every visitor hits on page load, so they can answer "nobody is signed in"
+// with 200 instead of 401 and keep the browser console clean.
+exports.optionalAuth=catchAsyncErrors(async(req,res,next)=>{
+    const {token}=req.cookies;
+
+    if(!token){
+        return next();
+    }
+
+    let decoded;
+    try {
+        decoded=jwt.verify(token,process.env.JWT_SECRET_KEY)
+    } catch (error) {
+        // Expired or tampered token: clear it so the browser stops resending it
+        // instead of getting the same rejection on every request.
+        res.clearCookie("token");
+        return next();
+    }
+
+    req.user=await User.findById(decoded.id)
+
+    // The account behind the token no longer exists.
+    if(!req.user){
+        res.clearCookie("token");
+    }
+
+    next();
+})
+
 exports.isSeller=catchAsyncErrors(async(req,res,next)=>{
     const {seller_token} = req.cookies;
     if(!seller_token){
         return next(new ErrorHandler("Please login to continue", 401));
     }
 
-    const decoded = jwt.verify(seller_token, process.env.JWT_SECRET_KEY);
+    let decoded;
+    try {
+        decoded = jwt.verify(seller_token, process.env.JWT_SECRET_KEY);
+    } catch (error) {
+        // Expired or tampered token: clear it so the browser stops resending it
+        // instead of getting the same rejection on every request.
+        res.clearCookie("seller_token");
+        return next(new ErrorHandler("Please login to continue", 401));
+    }
+
     req.seller = await Shop.findById(decoded.id);
 
     if(!req.seller){
+        res.clearCookie("seller_token");
         return next(new ErrorHandler("Seller not found", 401));
     }
 

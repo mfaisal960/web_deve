@@ -22,6 +22,7 @@ import { Country, State } from "country-state-city";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { getAllOrdersOfUser } from "../../redux/actions/order";
+import OrderItemsCell from "../Order/OrderItemsCell";
 
 const inputClasses =
   "w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition-all duration-200 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
@@ -43,13 +44,17 @@ const ProfileContent = ({ active }) => {
 
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    if (user) {
-      setName(user.name || "");
-      setEmail(user.email || "");
-      setPhoneNumber(user.phoneNumber || "");
-    }
-  }, [user]);
+  // The profile is loaded asynchronously, so the form fields are re-synced while
+  // rendering when the user changes (React's recommended alternative to a
+  // setState-in-effect).
+  const [syncedUserId, setSyncedUserId] = useState(user?._id);
+
+  if (user && syncedUserId !== user._id) {
+    setSyncedUserId(user._id);
+    setName(user.name || "");
+    setEmail(user.email || "");
+    setPhoneNumber(user.phoneNumber || "");
+  }
 
   useEffect(() => {
     if (error) {
@@ -317,6 +322,14 @@ const AllOrders = () => {
       },
     },
     {
+      field: "items",
+      headerName: "Products",
+      minWidth: 260,
+      flex: 1.4,
+      sortable: false,
+      renderCell: (params) => <OrderItemsCell cart={params.row.cart} />,
+    },
+    {
       field: "itemsQty",
       headerName: "Items",
       type: "number",
@@ -348,6 +361,7 @@ const AllOrders = () => {
   const rows =
     orders?.map((item) => ({
       id: item._id,
+      cart: Array.isArray(item.cart) ? item.cart : [],
       itemsQty: item.cart?.length || 0,
       total: `US$ ${item.totalPrice}`,
       status: item.status,
@@ -404,6 +418,14 @@ const AllRefundOrders = () => {
       ),
     },
     {
+      field: "items",
+      headerName: "Products",
+      minWidth: 260,
+      flex: 1.4,
+      sortable: false,
+      renderCell: (params) => <OrderItemsCell cart={params.row.cart} />,
+    },
+    {
       field: "itemsQty",
       headerName: "Items",
       type: "number",
@@ -434,6 +456,7 @@ const AllRefundOrders = () => {
 
   const rows = eligibleOrders.map((item) => ({
     id: item._id,
+    cart: Array.isArray(item.cart) ? item.cart : [],
     itemsQty: item.cart?.length || 0,
     total: `US$ ${item.totalPrice}`,
     status: item.status,
@@ -497,6 +520,14 @@ const TrackOrder = () => {
       },
     },
     {
+      field: "items",
+      headerName: "Products",
+      minWidth: 260,
+      flex: 1.4,
+      sortable: false,
+      renderCell: (params) => <OrderItemsCell cart={params.row.cart} />,
+    },
+    {
       field: "itemsQty",
       headerName: "Items",
       type: "number",
@@ -528,6 +559,7 @@ const TrackOrder = () => {
   const rows =
     orders?.map((item) => ({
       id: item._id,
+      cart: Array.isArray(item.cart) ? item.cart : [],
       itemsQty: item.cart?.length || 0,
       total: `US$ ${item.totalPrice}`,
       status: item.status,

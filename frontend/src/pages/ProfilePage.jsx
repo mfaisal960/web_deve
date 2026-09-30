@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Header from "../components/Login/Layout/Header";
 import ProfileSideBar from "../components/Profile/ProfileSidebar";
 import ProfileContent from "../components/Profile/ProfileContent";
@@ -6,7 +7,19 @@ import { useSelector } from "react-redux";
 
 const ProfilePage = () => {
   const { loading } = useSelector((state) => state.user);
-  const [active, setActive] = useState(1);
+  const [searchParams] = useSearchParams();
+
+  // The sidebar tabs are numbered and the tab is not in the path, so a page
+  // outside /profile (the order confirmation, the order detail page) could not
+  // send the buyer to their orders — it always opened on the profile form.
+  // `?tab=` carries the tab number across.
+  const [active, setActive] = useState(() => {
+    const requested = Number(searchParams.get("tab"));
+
+    return Number.isInteger(requested) && requested >= 1 && requested <= 7
+      ? requested
+      : 1;
+  });
 
   return (
     <div className="min-h-screen bg-gray-100">

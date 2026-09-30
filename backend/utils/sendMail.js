@@ -55,14 +55,47 @@ const sendMail = async (options) => {
 
   const transporter = nodemailer.createTransport(transporterConfig);
 
+  // `html` is optional, but a text-only body that consists of little more than a
+  // bare link scores badly with spam classifiers, so callers should pass one.
+  // The display name on the envelope sender gives the recipient something
+  // recognisable in the inbox list; the address stays the authenticated mailbox
+  // so SPF/DKIM keep aligning.
+  const fromName = process.env.SMTP_FROM_NAME || "Shop Management";
+
   const mailOptions = {
-    from: process.env.SMTP_MAIL,
+    from: `"${fromName}" <${process.env.SMTP_MAIL}>`,
     to: options.email,
     subject: options.subject,
     text: options.message,
+    ...(options.html ? { html: options.html } : {}),
+    ...(options.replyTo || process.env.SMTP_REPLY_TO
+      ? { replyTo: options.replyTo || process.env.SMTP_REPLY_TO }
+      : {}),
   };
 
-  await transporter.sendMail(mailOptions);
+  const info = await transporter.sendMail(mailOptions);
+
+  // A recipient can be rejected (bad address, blocked by the provider) without
+  // nodemailer throwing, so a "successful" send can still deliver nothing.
+  // Throwing here stops callers from reporting a mail that was never sent.
+  if (Array.isArray(info.rejected) && info.rejected.length > 0) {
+    const error = new Error(
+      `Recipient rejected by the mail server: ${info.rejected.length} address(es)`
+    );
+    error.rejected = info.rejected;
+    error.rejectedErrors = info.rejectedErrors;
+    throw error;
+  }
+
+  if (Array.isArray(info.accepted) && info.accepted.length === 0) {
+    throw new Error("Mail server accepted no recipients");
+  }
+
+  console.log(
+    `Mail sent to ${info.accepted.join(", ")} (id: ${info.messageId})`
+  );
+
+  return info;
 };
 
 module.exports = sendMail;

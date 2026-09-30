@@ -1,15 +1,14 @@
 import './App.css'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 import { server } from './server.js'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Login, Signup ,ActivationPage,HomePage,ProductsPage ,
   BestSellingPage,Event,Faq, ProductDetailsPage,
-  ProfilePage,ShopOrderDetails} from './routes/Routes.js'
+  ProfilePage,ShopOrderDetails,UserOrderDetailsPage} from './routes/Routes.js'
 import { ShopCreateProduct } from './routes/ShopRoutes.js'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
-import { useEffect } from 'react'
 import Store from './redux/store.js'
 import { loadSeller, loadUser } from './redux/actions/user.js'
 import { getAllProducts } from './redux/actions/product.js'
@@ -62,11 +61,24 @@ const AppRoutes = () => {
   const location = useLocation()
   const isSellerPage = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/shop/')
 
-  useEffect(() => {
-    Store.dispatch(loadUser())
-    Store.dispatch(getAllProducts())
-    Store.dispatch(getAllEvents())
+  // The session only changes on a full page load (login/logout both call
+  // window.location.reload), so load it once. Refiring it on every seller-page
+  // navigation, and twice more under StrictMode's dev double-invoke, made the
+  // console fill up with 401s from GET /user/getuser for signed-out visitors.
+  const didLoadUser = useRef(false);
 
+  useEffect(() => {
+    if (didLoadUser.current) return;
+    didLoadUser.current = true;
+    Store.dispatch(loadUser());
+  }, []);
+
+  useEffect(() => {
+    Store.dispatch(getAllProducts());
+    Store.dispatch(getAllEvents());
+  }, []);
+
+  useEffect(() => {
     if (isSellerPage) {
       Store.dispatch(loadSeller())
     }
@@ -153,6 +165,20 @@ const AppRoutes = () => {
         <Route path="/events" element={<Event/>}/>
          <Route path="/faq" element={<Faq/>}/>
         <Route path="/order/success" element={<OrderSuccessPage/>}/>
+        {/* Both of these are linked from the profile order list but had no route,
+            so the arrow buttons silently redirected to the home page. */}
+        <Route path="/user/order/:id"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <UserOrderDetailsPage />
+            </ProtectedRoute>
+          } />
+        <Route path="/user/track/order/:id"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <UserOrderDetailsPage />
+            </ProtectedRoute>
+          } />
    
          <Route path="/Signup" element={<Signup/>}/>  
               <Route path="/profile" element={

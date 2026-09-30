@@ -1,5 +1,6 @@
 import axios from "axios";
 import { server } from "../../server";
+import { syncCart } from "./cart";
 
 // load user
 export const loadUser = () => async (dispatch) => {
@@ -10,10 +11,17 @@ export const loadUser = () => async (dispatch) => {
     const { data } = await axios.get(`${server}/user/getuser`, {
       withCredentials: true,
     });
+    // data.user is null when nobody is signed in. That is a normal state, not
+    // a failure, so it must not end up in the error slot.
     dispatch({
       type: "LoadUserSuccess",
-      payload: data.user,
+      payload: data.user || null,
     });
+
+    // A session is now known, so the stored cart can be reconciled with the
+    // server. This runs on a failure too: signing out has to drop the previous
+    // account's cart instead of leaving it on screen.
+    dispatch(syncCart());
   } catch (error) {
     dispatch({
       type: "LoadUserFail",

@@ -49,6 +49,7 @@ const uploadEventImage = async (image) => {
 // create event
 router.post(
   "/create-event",
+  isSeller,
   catchAsyncErrors(async (req, res, next) => {
     try {
       const {
@@ -57,7 +58,6 @@ router.post(
         category,
         discountPrice,
         stock,
-        shopId,
         start_Date,
         Finish_Date,
       } = req.body;
@@ -68,7 +68,6 @@ router.post(
         !category ||
         !discountPrice ||
         !stock ||
-        !shopId ||
         !start_Date ||
         !Finish_Date
       ) {
@@ -77,9 +76,18 @@ router.post(
         );
       }
 
-      const shop = await Shop.findById(shopId);
+      // The event always belongs to the seller's own shop. The dashboard sends
+      // shopId, but a body field must never decide who owns the event, and this
+      // route used to be reachable without any session at all.
+      const shop = await Shop.findById(req.seller.id);
       if (!shop) {
         return next(new ErrorHandler("Shop Id is invalid!", 400));
+      }
+
+      if (req.body.shopId && String(req.body.shopId) !== String(shop._id)) {
+        return next(
+          new ErrorHandler("You can only add events to your own shop", 403)
+        );
       }
 
       let images = [];
@@ -107,6 +115,7 @@ router.post(
 
       const eventData = {
         ...req.body,
+        shopId: String(shop._id),
         images: imagesLinks,
         shop: {
           _id: shop._id,
@@ -137,7 +146,7 @@ router.get("/get-all-events", async (req, res, next) => {
       events,
     });
   } catch (error) {
-    return next(new ErrorHandler(error, 400));
+    return next(new ErrorHandler(error.message || "Unable to fetch events", 400));
   }
 });
 
@@ -153,7 +162,7 @@ router.get(
         events,
       });
     } catch (error) {
-      return next(new ErrorHandler(error, 400));
+      return next(new ErrorHandler(error.message || "Unable to fetch events", 400));
     }
   })
 );
@@ -161,12 +170,21 @@ router.get(
 // delete event of a shop
 router.delete(
   "/delete-shop-event/:id",
+  isSeller,
   catchAsyncErrors(async (req, res, next) => {
     try {
       const event = await Event.findById(req.params.id);
 
       if (!event) {
         return next(new ErrorHandler("Event is not found with this id", 404));
+      }
+
+      // Without this check any signed-in seller could delete another shop's
+      // events, and the route had no session requirement at all.
+      if (String(event.shopId) !== String(req.seller.id)) {
+        return next(
+          new ErrorHandler("You are not authorized to delete this event", 403)
+        );
       }
 
       for (const image of event.images || []) {

@@ -1,7 +1,9 @@
 const initialState = {
   events: [],
   allEvents: [],
-  loading: false,
+  // getAllEvents() is dispatched on app mount, so start out loading rather than
+  // reporting "loaded" before the request has had a chance to start.
+  loading: true,
   error: null,
   success: false,
 };

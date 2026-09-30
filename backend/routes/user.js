@@ -4,7 +4,7 @@ const User = require("../model/user");
 const { upload } = require("../multer");
 const ErrorHandler = require("../utils/ErrorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
-const { isAuthenticated } = require("../middleware/auth");
+const { isAuthenticated, isAdmin, optionalAuth } = require("../middleware/auth");
 const sendMail = require("../utils/sendMail");
 
 const router = express.Router();
@@ -96,8 +96,11 @@ router.post(
 
     const user = await User.findOne({ email }).select("+password");
 
+    // The same message and status are used whether the account is unknown or the
+    // password is wrong, so the response cannot be used to find out which
+    // emails are registered.
     if (!user) {
-      return next(new ErrorHandler("User not found", 404));
+      return next(new ErrorHandler("Invalid email or password", 401));
     }
 
     const isPasswordValid = await user.comparePassword(password);
@@ -139,17 +142,20 @@ router.get("/logout", (req, res) => {
 });
 
 // ==================== GET USER ====================
-// Returns the account that owns the session cookie. It used to return
-// User.findOne() regardless of the session, which made every visitor look
-// logged in and produced 401s on authenticated routes such as
+// Returns the account that owns the session cookie, or null when nobody is
+// signed in. It used to be behind isAuthenticated, but every visitor calls it
+// on page load, so a signed-out page load answered 401 and filled the browser
+// console with Unauthorized errors. It also used to return User.findOne()
+// regardless of the session, which made every visitor look logged in and
+// produced 401s on authenticated routes such as
 // GET /order/get-all-orders/:userId.
 router.get(
   "/getuser",
-  isAuthenticated,
-  catchAsyncErrors(async (req, res, next) => {
+  optionalAuth,
+  catchAsyncErrors(async (req, res) => {
     res.status(200).json({
       success: true,
-      user: req.user,
+      user: req.user || null,
     });
   })
 );
@@ -367,6 +373,23 @@ router.post(
   })
 );
 
+// ==================== ALL USERS (ADMIN) ====================
+// The frontend has a getAllUsers() action calling this, but the route only
+// existed in the unmounted controller/user.js copy, so the admin list 404'd.
+router.get(
+  "/admin-all-users",
+  isAuthenticated,
+  isAdmin("Admin"),
+  catchAsyncErrors(async (req, res) => {
+    const users = await User.find().sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      users,
+    });
+  })
+);
+
 // ==================== SEND MESSAGE TO SHOP ====================
 router.post(
   "/send-message",
@@ -377,11 +400,17 @@ router.post(
       return next(new ErrorHandler("Email, subject, and message are required", 400));
     }
 
-    await sendMail({
-      email,
-      subject,
-      message,
-    });
+    try {
+      await sendMail({
+        email,
+        subject,
+        message,
+      });
+    } catch (error) {
+      return next(
+        new ErrorHandler("Unable to send your message right now", 500)
+      );
+    }
 
     res.status(200).json({
       success: true,

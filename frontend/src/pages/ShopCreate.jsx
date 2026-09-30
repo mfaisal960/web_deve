@@ -5,14 +5,13 @@ import ShopCreate from "../components/Shop/ShopCreate";
 
 const ShopCreatePage = () => {
   const navigate = useNavigate();
-  const isSeller = useSelector((state) => state.seller?.isSeller ?? false);
-  const seller = useSelector((state) => state.seller?.seller ?? null);
+  const { isSeller,seller } = useSelector((state) => state.seller);
 
   useEffect(() => {
-    if (isSeller && seller?._id) {
-      navigate("/dashboard", { replace: true });
+    if(isSeller === true){
+      navigate(`/shop/${seller._id}`);
     }
-  }, [isSeller, navigate, seller]);
+  }, [])
   return (
     <div>
         <ShopCreate />

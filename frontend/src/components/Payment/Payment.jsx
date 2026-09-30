@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   CardNumberElement,
@@ -11,11 +11,18 @@ import {
   PayPalScriptProvider,
   PayPalButtons,
 } from "@paypal/react-paypal-js";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import axios from "axios";
 import { server } from "../../server";
 import { toast } from "react-toastify";
 import { RxCross1 } from "react-icons/rx";
+import { clearCart, dropUnorderableItems } from "../../redux/actions/cart";
+// Aliased: this file already has a local `createOrder`, which is PayPal's
+// onCreateOrder callback and has nothing to do with filing the order.
+import {
+  createOrder as createOrderRequest,
+  getAllOrdersOfUser,
+} from "../../redux/actions/order";
 
 const inputClasses =
   "w-full h-11 rounded-lg border border-gray-300 bg-white px-3 text-gray-700 outline-none transition-all duration-200 focus:border-[#f63b60] focus:ring-2 focus:ring-[#f63b60]/10";
@@ -42,24 +49,81 @@ const stripeOptions = {
     },
   },
 };
-
 const Payment = () => {
-  const [orderData, setOrderData] = useState([]);
+  // latestOrder is written by Checkout right before navigating here, so it can
+  // be read once as a lazy initializer instead of in an effect.
+  const [orderData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("latestOrder") || "null") || [];
+    } catch {
+      return [];
+    }
+  });
+
   const [open, setOpen] = useState(false);
 
   const { user } = useSelector((state) => state.user);
+
+  const dispatch = useDispatch();
 
   const navigate = useNavigate();
   const stripe = useStripe();
   const elements = useElements();
 
-  useEffect(() => {
-    const storedOrder = JSON.parse(
-      localStorage.getItem("latestOrder") || "null"
+  // ------------------------------------------------
+  // ORDER DATA
+  // ------------------------------------------------
+  // Built per request instead of being a shared object that handlers mutate.
+  const buildOrder = (paymentInfo) => ({
+    cart: orderData?.cart,
+    shippingAddress: orderData?.shippingAddress,
+    user: user || null,
+    totalPrice: orderData?.totalPrice,
+    paymentInfo,
+  });
+
+  // Places the order and, only once the API confirms it, empties the cart in both
+  // the store and localStorage. `ok` is false when the order was refused, so each
+  // payment method can stop instead of reporting a success that never happened.
+  const placeOrder = async (paymentInfo, fallback) => {
+    const { ok, orders, unorderableItems, error } = await dispatch(
+      createOrderRequest(buildOrder(paymentInfo))
     );
 
-    setOrderData(storedOrder || []);
-  }, []);
+    if (!ok) {
+      // Part of the cart can point at a shop that no longer exists, which is a
+      // 400 naming the rows. They can never be bought, so they are dropped and
+      // the buyer is told which, rather than retrying into the same failure.
+      if (unorderableItems.length) {
+        await dispatch(dropUnorderableItems(unorderableItems));
+        return { ok: false, cartRepaired: true };
+      }
+
+      toast.error(error || fallback);
+
+      return { ok: false, cartRepaired: false };
+    }
+
+    dispatch(clearCart());
+    localStorage.setItem("cartItems", JSON.stringify([]));
+    localStorage.setItem("latestOrder", JSON.stringify([]));
+
+    // Keep what was just bought: the confirmation screen renders these products,
+    // and the order list is refreshed so the new order is there the moment the
+    // buyer goes looking for it instead of only after a page remount.
+    dispatch({ type: "OrdersCreated", payload: orders });
+
+    if (user?._id) {
+      dispatch(getAllOrdersOfUser(user._id));
+    }
+
+    setOpen(false);
+    navigate("/order/success");
+
+    toast.success("Order successful!");
+
+    return { ok: true, cartRepaired: false };
+  };
 
   // ------------------------------------------------
   // PAYPAL CREATE ORDER
@@ -84,16 +148,6 @@ const Payment = () => {
   };
 
   // ------------------------------------------------
-  // ORDER DATA
-  // ------------------------------------------------
-  const order = {
-    cart: orderData?.cart,
-    shippingAddress: orderData?.shippingAddress,
-    user: user && user,
-    totalPrice: orderData?.totalPrice,
-  };
-
-  // ------------------------------------------------
   // PAYPAL APPROVE
   // ------------------------------------------------
   const onApprove = async (data, actions) => {
@@ -112,42 +166,20 @@ const Payment = () => {
   // PAYPAL PAYMENT
   // ------------------------------------------------
   const paypalPaymentHandler = async (paymentInfo) => {
-    try {
-      const config = {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        // The API is on a different origin (localhost:8000), so the session
-        // cookie has to be sent explicitly for authenticated endpoints.
-        withCredentials: true,
-      };
-
-      order.paymentInfo = {
+    const { ok, cartRepaired } = await placeOrder(
+      {
         id: paymentInfo.payer_id,
         status: "succeeded",
         type: "Paypal",
-      };
+      },
+      "Payment failed!"
+    );
 
-      await axios.post(
-        `${server}/order/create-order`,
-        order,
-        config
-      );
-
-      setOpen(false);
-      navigate("/order/success");
-
-      toast.success("Order successful!");
-
-      localStorage.setItem("cartItems", JSON.stringify([]));
-      localStorage.setItem("latestOrder", JSON.stringify([]));
-
-      window.location.reload();
-    } catch (error) {
+    if (!ok && !cartRepaired) {
+      // PayPal already captured the money, so the buyer has to be told the order
+      // was not recorded rather than seeing the request fail silently.
       toast.error(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Payment failed!"
+        "PayPal completed the payment but the order could not be saved. Please contact support with your receipt."
       );
     }
   };
@@ -208,28 +240,22 @@ const Payment = () => {
         result.paymentIntent &&
         result.paymentIntent.status === "succeeded"
       ) {
-        order.paymentInfo = {
-          id: result.paymentIntent.id,
-          status: result.paymentIntent.status,
-          type: "Credit Card",
-        };
-
-        await axios.post(
-          `${server}/order/create-order`,
-          order,
-          config
+        // Stripe already took the money, so an order that fails to save needs
+        // its own message on top of whatever went wrong.
+        const { ok, cartRepaired } = await placeOrder(
+          {
+            id: result.paymentIntent.id,
+            status: result.paymentIntent.status,
+            type: "Credit Card",
+          },
+          "Payment failed!"
         );
 
-        setOpen(false);
-
-        navigate("/order/success");
-
-        toast.success("Order successful!");
-
-        localStorage.setItem("cartItems", JSON.stringify([]));
-        localStorage.setItem("latestOrder", JSON.stringify([]));
-
-        window.location.reload();
+        if (!ok && !cartRepaired) {
+          toast.error(
+            "Your card was charged but the order could not be saved. Please contact support with your receipt."
+          );
+        }
       }
     } catch (error) {
       toast.error(
@@ -246,42 +272,17 @@ const Payment = () => {
   const cashOnDeliveryHandler = async (e) => {
     e.preventDefault();
 
-    try {
-      const config = {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        // The API is on a different origin (localhost:8000), so the session
-        // cookie has to be sent explicitly for authenticated endpoints.
-        withCredentials: true,
-      };
+    const { ok, cartRepaired } = await placeOrder(
+      { type: "Cash On Delivery" },
+      "Order failed!"
+    );
 
-      order.paymentInfo = {
-        type: "Cash On Delivery",
-      };
-
-      await axios.post(
-        `${server}/order/create-order`,
-        order,
-        config
-      );
-
-      setOpen(false);
-
-      navigate("/order/success");
-
-      toast.success("Order successful!");
-
-      localStorage.setItem("cartItems", JSON.stringify([]));
-      localStorage.setItem("latestOrder", JSON.stringify([]));
-
-      window.location.reload();
-    } catch (error) {
-      toast.error(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Order failed!"
-      );
+    // The repair already explained what was removed, but the buyer is still
+    // sitting on a payment screen for an order that was not created. Previously
+    // this returned quietly, so clicking "Confirm Order" looked broken and the
+    // next click just reported an empty cart.
+    if (!ok && cartRepaired) {
+      toast.info("Please review your cart and confirm your order again.");
     }
   };
 
@@ -583,83 +584,82 @@ const CartData = ({ orderData }) => {
     try {
       setCouponLoading(true);
 
-      /*
-       * ------------------------------------------------------
-       * CONNECT YOUR BACKEND COUPON API HERE
-       * ------------------------------------------------------
-       *
-       * Example backend endpoint:
-       *
-       * POST /coupon/apply
-       *
-       * Body:
-       * {
-       *   code: "SAVE10",
-       *   amount: 100
-       * }
-       *
-       * Expected response:
-       *
-       * {
-       *   success: true,
-       *   discountPrice: 10,
-       *   totalPrice: 90
-       * }
-       *
-       * ------------------------------------------------------
-       */
-
-      const { data } = await axios.post(
-        `${server}/coupon/apply`,
-        {
-          code: code,
-          amount: Number(orderData?.subTotalPrice || 0),
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+      // The coupon value comes from the same endpoint Checkout uses. There is
+      // no POST /coupon/apply route in this backend, so the old call could
+      // only ever answer 404.
+      const { data } = await axios.get(
+        `${server}/coupon/get-coupon-value/${encodeURIComponent(code)}`
       );
 
-      if (data?.success) {
-        toast.success(
-          data?.message || "Coupon applied successfully!"
-        );
+      const coupon = data?.couponCode;
 
-        /*
-         * Update latestOrder so the payment page
-         * displays the new discount and total.
-         */
-        const updatedOrder = {
-          ...orderData,
-
-          discountPrice:
-            Number(data?.discountPrice || 0),
-
-          totalPrice:
-            Number(
-              data?.totalPrice ??
-                Number(orderData?.totalPrice || 0) -
-                  Number(data?.discountPrice || 0)
-            ),
-        };
-
-        localStorage.setItem(
-          "latestOrder",
-          JSON.stringify(updatedOrder)
-        );
-
-        /*
-         * Reload so Payment reads the updated
-         * latestOrder from localStorage.
-         */
-        window.location.reload();
-      } else {
-        toast.error(
-          data?.message || "Invalid coupon code."
-        );
+      if (!coupon) {
+        toast.error("Coupon code doesn't exist!");
+        setCouponCode("");
+        return;
       }
+
+      const cart = orderData?.cart || [];
+
+      const getItemShopId = (item) => {
+        const raw =
+          item?.shopId ??
+          item?.shop?._id ??
+          item?.shop?.id ??
+          item?.sellerId ??
+          item?.seller?._id ??
+          item?.seller?.id;
+        return raw == null ? null : String(raw);
+      };
+
+      const shopMatchedItems = cart.filter(
+        (item) => getItemShopId(item) === String(coupon.shopId)
+      );
+
+      const eligibleItems =
+        shopMatchedItems.length > 0 ? shopMatchedItems : cart;
+
+      if (eligibleItems.length === 0) {
+        toast.error("Coupon code is not valid for this shop!");
+        setCouponCode("");
+        return;
+      }
+
+      const getItemPrice = (item) =>
+        item?.discountPrice ?? item?.discount_price ?? item?.price ?? 0;
+
+      const subTotal = cart.reduce(
+        (acc, item) => acc + getItemPrice(item) * (item?.qty ?? 1),
+        0
+      );
+
+      const eligiblePrice = eligibleItems.reduce(
+        (acc, item) => acc + getItemPrice(item) * (item?.qty ?? 1),
+        0
+      );
+
+      const calculatedDiscount = (eligiblePrice * coupon.value) / 100;
+      const shippingCost = Number(orderData?.shipping || subTotal * 0.1);
+
+      // Store the recalculated total so Payment charges and displays the same
+      // amount.
+      const updatedOrder = {
+        ...orderData,
+        subTotalPrice: Number(subTotal),
+        shipping: Number(shippingCost),
+        discountPrice: Number(calculatedDiscount.toFixed(2)),
+        totalPrice: Number(
+          (subTotal + shippingCost - calculatedDiscount).toFixed(2)
+        ),
+      };
+
+      localStorage.setItem("latestOrder", JSON.stringify(updatedOrder));
+
+      setCouponCode("");
+      toast.success("Coupon applied successfully!");
+
+      // Reload so Payment reads the updated latestOrder from localStorage.
+      window.location.reload();
     } catch (error) {
       toast.error(
         error?.response?.data?.message ||

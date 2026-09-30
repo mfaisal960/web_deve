@@ -362,6 +362,456 @@ export const productData = [
     sold_out: 6,
     ratings: 4.3,
   },
+  {
+    id: 13,
+    category: "Shoes",
+    name: "Nike Air Running Shoes",
+    description:
+      "Lightweight breathable running shoes with cushioned sole and grippy rubber outsole for daily workouts.",
+    image:
+      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test13",
+        url: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 113,
+      name: "Urban Kicks",
+      email: "support@urbankicks.com",
+      location: "Portland, USA",
+      shop_avatar: {
+        public_id: "shop13",
+        url: "https://randomuser.me/api/portraits/men/52.jpg",
+      },
+    },
+    price: 130,
+    discount_price: 99,
+    stock: 22,
+    sold_out: 9,
+    ratings: 4.7,
+  },
+  {
+    id: 14,
+    category: "Watches",
+    name: "Titan Analog Watch",
+    description:
+      "Classic analog wristwatch with stainless steel strap, water resistance and a clean minimal dial.",
+    image:
+      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test14",
+        url: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 114,
+      name: "Time Craft",
+      email: "help@timecraft.com",
+      location: "Zurich, Switzerland",
+      shop_avatar: {
+        public_id: "shop14",
+        url: "https://randomuser.me/api/portraits/women/68.jpg",
+      },
+    },
+    price: 260,
+    discount_price: 219,
+    stock: 11,
+    sold_out: 4,
+    ratings: 4.4,
+  },
+  {
+    id: 15,
+    category: "Bags",
+    name: "Leather Backpack",
+    description:
+      "Durable full-grain leather backpack with padded laptop sleeve and multiple organised compartments.",
+    image:
+      "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test15",
+        url: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 115,
+      name: "Carry On",
+      email: "sales@carryon.com",
+      location: "London, UK",
+      shop_avatar: {
+        public_id: "shop15",
+        url: "https://randomuser.me/api/portraits/men/22.jpg",
+      },
+    },
+    price: 145,
+    discount_price: 118,
+    stock: 16,
+    sold_out: 7,
+    ratings: 4.6,
+  },
+  {
+    id: 16,
+    category: "Home Decor",
+    name: "Ceramic Table Vase",
+    description:
+      "Handcrafted ceramic vase with a matte finish, perfect for fresh flowers or as a standalone decor piece.",
+    image:
+      "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test16",
+        url: "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 116,
+      name: "Nest Living",
+      email: "hello@nestliving.com",
+      location: "Copenhagen, Denmark",
+      shop_avatar: {
+        public_id: "shop16",
+        url: "https://randomuser.me/api/portraits/women/44.jpg",
+      },
+    },
+    price: 68,
+    discount_price: 49,
+    stock: 30,
+    sold_out: 12,
+    ratings: 4.8,
+  },
+  {
+    id: 17,
+    category: "Beauty",
+    name: "Organic Skin Care Kit",
+    description:
+      "Daily skin care kit with cleanser, toner and moisturiser made from organic and cruelty-free ingredients.",
+    image:
+      "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test17",
+        url: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 117,
+      name: "Glow Lab",
+      email: "care@glowlab.com",
+      location: "Seoul, South Korea",
+      shop_avatar: {
+        public_id: "shop17",
+        url: "https://randomuser.me/api/portraits/women/65.jpg",
+      },
+    },
+    price: 110,
+    discount_price: 79,
+    stock: 25,
+    sold_out: 11,
+    ratings: 4.9,
+  },
+  {
+    id: 18,
+    category: "Kitchen",
+    name: "Stainless Steel Cookware Set",
+    description:
+      "Five-piece cookware set with tri-ply stainless steel construction, induction ready and oven safe.",
+    image:
+      "https://images.unsplash.com/photo-1584990347449-a2d4c2c9ee4e?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test18",
+        url: "https://images.unsplash.com/photo-1584990347449-a2d4c2c9ee4e?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 118,
+      name: "Chef Vault",
+      email: "support@chefvault.com",
+      location: "Lyon, France",
+      shop_avatar: {
+        public_id: "shop18",
+        url: "https://randomuser.me/api/portraits/men/12.jpg",
+      },
+    },
+    price: 320,
+    discount_price: 265,
+    stock: 13,
+    sold_out: 8,
+    ratings: 4.5,
+  },
+  {
+    id: 19,
+    category: "Gaming",
+    name: "Wireless Gaming Mouse",
+    description:
+      "Ergonomic wireless gaming mouse with 12000 DPI sensor, RGB lighting and 40 hour battery life.",
+    image:
+      "https://images.unsplash.com/photo-1527814050087-3793815479db?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test19",
+        url: "https://images.unsplash.com/photo-1527814050087-3793815479db?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 119,
+      name: "Pixel Forge",
+      email: "hello@pixelforge.com",
+      location: "Austin, USA",
+      shop_avatar: {
+        public_id: "shop19",
+        url: "https://randomuser.me/api/portraits/men/33.jpg",
+      },
+    },
+    price: 85,
+    discount_price: 59,
+    stock: 28,
+    sold_out: 14,
+    ratings: 4.7,
+  },
+  {
+    id: 20,
+    category: "Accessories",
+    name: "Polarised Sunglasses",
+    description:
+      "UV400 polarised sunglasses with a lightweight TR90 frame and hard-coated scratch resistant lenses.",
+    image:
+      "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test20",
+        url: "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 120,
+      name: "Sun Theory",
+      email: "support@suntheory.com",
+      location: "Barcelona, Spain",
+      shop_avatar: {
+        public_id: "shop20",
+        url: "https://randomuser.me/api/portraits/women/26.jpg",
+      },
+    },
+    price: 190,
+    discount_price: 139,
+    stock: 20,
+    sold_out: 6,
+    ratings: 4.3,
+  },
+  {
+    id: 21,
+    category: "Mobiles",
+    name: "Samsung Galaxy Buds Pro",
+    description:
+      "True wireless earbuds with active noise cancellation, 360 degree audio and wireless charging case.",
+    image:
+      "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test21",
+        url: "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 121,
+      name: "Sound Nest",
+      email: "care@soundnest.com",
+      location: "Tokyo, Japan",
+      shop_avatar: {
+        public_id: "shop21",
+        url: "https://randomuser.me/api/portraits/men/59.jpg",
+      },
+    },
+    price: 230,
+    discount_price: 179,
+    stock: 24,
+    sold_out: 13,
+    ratings: 4.8,
+  },
+  {
+    id: 22,
+    category: "Laptops",
+    name: "MacBook Air M2",
+    description:
+      "Thin and light laptop with the M2 chip, 13.6 inch Liquid Retina display and all-day battery life.",
+    image:
+      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test22",
+        url: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 122,
+      name: "Byte Bazaar",
+      email: "support@bytebazaar.com",
+      location: "Singapore",
+      shop_avatar: {
+        public_id: "shop22",
+        url: "https://randomuser.me/api/portraits/women/12.jpg",
+      },
+    },
+    price: 1450,
+    discount_price: 1299,
+    stock: 8,
+    sold_out: 10,
+    ratings: 4.9,
+  },
+  {
+    id: 23,
+    category: "Electronics",
+    name: "Bluetooth Speaker Pro",
+    description:
+      "Portable Bluetooth speaker with deep bass, 24 hour playtime and IPX7 waterproof protection.",
+    image:
+      "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test23",
+        url: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 123,
+      name: "Echo Base",
+      email: "sales@echobase.com",
+      location: "Toronto, Canada",
+      shop_avatar: {
+        public_id: "shop23",
+        url: "https://randomuser.me/api/portraits/men/75.jpg",
+      },
+    },
+    price: 155,
+    discount_price: 112,
+    stock: 19,
+    sold_out: 8,
+    ratings: 4.4,
+  },
+  {
+    id: 24,
+    category: "Fashion",
+    name: "Women's Summer Dress",
+    description:
+      "Breezy floral summer dress with adjustable straps and a flattering A-line silhouette.",
+    image:
+      "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test24",
+        url: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 124,
+      name: "Bloom Studio",
+      email: "hello@bloomstudio.com",
+      location: "Paris, France",
+      shop_avatar: {
+        public_id: "shop24",
+        url: "https://randomuser.me/api/portraits/women/21.jpg",
+      },
+    },
+    price: 175,
+    discount_price: 132,
+    stock: 21,
+    sold_out: 7,
+    ratings: 4.6,
+  },
+  {
+    id: 25,
+    category: "Home Decor",
+    name: "Macrame Wall Hanging",
+    description:
+      "Handwoven macrame wall hanging in natural cotton, adding warmth and texture to any blank wall.",
+    image:
+      "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test25",
+        url: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 125,
+      name: "Loom & Co",
+      email: "care@loomandco.com",
+      location: "Jaipur, India",
+      shop_avatar: {
+        public_id: "shop25",
+        url: "https://randomuser.me/api/portraits/women/85.jpg",
+      },
+    },
+    price: 95,
+    discount_price: 65,
+    stock: 27,
+    sold_out: 10,
+    ratings: 4.7,
+  },
+  {
+    id: 26,
+    category: "Kitchen",
+    name: "Cast Iron Skillet 26cm",
+    description:
+      "Pre-seasoned cast iron skillet that improves with use, ideal for searing, baking and campfire cooking.",
+    image:
+      "https://images.unsplash.com/photo-1585442231529-78398380ce4b?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test26",
+        url: "https://images.unsplash.com/photo-1585442231529-78398380ce4b?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 126,
+      name: "Hearth Goods",
+      email: "support@hearthgoods.com",
+      location: "Nashville, USA",
+      shop_avatar: {
+        public_id: "shop26",
+        url: "https://randomuser.me/api/portraits/men/62.jpg",
+      },
+    },
+    price: 78,
+    discount_price: 54,
+    stock: 23,
+    sold_out: 12,
+    ratings: 4.8,
+  },
+  {
+    id: 27,
+    category: "Gaming",
+    name: "RGB Gaming Keyboard",
+    description:
+      "Mechanical gaming keyboard with tactile switches, anti-ghosting and customisable per-key RGB lighting.",
+    image:
+      "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&q=80",
+    image_Url: [
+      {
+        public_id: "test27",
+        url: "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=500&q=80",
+      },
+    ],
+    shop: {
+      id: 127,
+      name: "Key Strike",
+      email: "sales@keystrike.com",
+      location: "Berlin, Germany",
+      shop_avatar: {
+        public_id: "shop27",
+        url: "https://randomuser.me/api/portraits/women/58.jpg",
+      },
+    },
+    price: 145,
+    discount_price: 105,
+    stock: 15,
+    sold_out: 9,
+    ratings: 4.5,
+  },
 ];
 
 // ===============================

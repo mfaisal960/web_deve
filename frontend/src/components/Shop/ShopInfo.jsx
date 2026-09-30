@@ -10,7 +10,7 @@ import { productData as demoProducts } from "../../static/data";
 
 const ShopInfo = ({ isOwner, initialShop }) => {
   const [data, setData] = useState(initialShop || {});
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadedShopId, setLoadedShopId] = useState(null);
 
   const { products } = useSelector((state) => state.products);
   const { id } = useParams();
@@ -24,34 +24,48 @@ const ShopInfo = ({ isOwner, initialShop }) => {
           String(id)
       );
 
+  // The loader is derived from which shop has been fetched, so no state has to
+  // be set synchronously when the effect starts.
+  const isLoading = Boolean(id) && isDatabaseId && loadedShopId !== id;
+
   useEffect(() => {
     if (!id) {
       return;
     }
 
     // Demo products use numeric shop IDs. They are not MongoDB ObjectIds and
-    // must not be sent to the API endpoint that queries Shop.findById().
+    // must not be sent to the API endpoint that queries Shop.findById(), so the
+    // initial (demo) shop data is kept as-is.
     if (!isDatabaseId) {
-      setData(initialShop || {});
-      setIsLoading(false);
       return;
     }
 
-    dispatch(getAllProductsShop(id));
+    let cancelled = false;
 
-    setIsLoading(true);
+    dispatch(getAllProductsShop(id));
 
     axios
       .get(`${server}/shop/get-shop-info/${id}`)
       .then((res) => {
-        setData(res.data.shop);
-        setIsLoading(false);
+        if (!cancelled) {
+          setData(res.data.shop);
+        }
       })
       .catch((error) => {
-        console.error("Unable to load shop information:", error);
-        setIsLoading(false);
+        if (!cancelled) {
+          console.error("Unable to load shop information:", error);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadedShopId(id);
+        }
       });
-  }, [dispatch, id, initialShop]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, id, isDatabaseId]);
 
   const logoutHandler = async () => {
     try {

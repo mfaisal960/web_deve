@@ -1,16 +1,17 @@
-import React, { useEffect, useState } from 'react'
+import React, { useMemo } from 'react'
 import Header from '../components/Login/Layout/Header'
 import { bestSellingData } from '../static/data'
 import ProductCard from '../components/Route/Hero/ProductCard/ProductCard'
 
 const BestSellingPage= () => {
-  
-  const [data, setData] = useState([])
 
-  useEffect(() => {
-   const d = bestSellingData && [...bestSellingData].sort((a, b) => b.total_sell - a.total_sell)
-   setData(d)
-  }, [])
+  const data = useMemo(
+    () =>
+      bestSellingData
+        ? [...bestSellingData].sort((a, b) => b.total_sell - a.total_sell)
+        : [],
+    []
+  )
 
   return (
     <div className="bg-gray-50 min-h-screen">

@@ -44,7 +44,7 @@ app.use(bodyParser.urlencoded({ extended: true, limit: "20mb" }));
 // routes
 const userRouter = require("./routes/user");
 const cartRouter = require("./routes/cart");
-const shopRouter = require("./controller/shop");
+const shopRouter = require("./routes/shop");
 const productRouter = require("./controller/product");
 const eventRouter = require("./controller/event");
 const couponRouter = require("./controller/coupounCode");

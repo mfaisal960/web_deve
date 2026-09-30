@@ -120,3 +120,42 @@ export const getAllProducts = () => async (dispatch) => {
     });
   }
 };
+
+// Reviews an item of a delivered order. The order id is part of the request
+// because the server checks it against the session buyer and the delivered
+// status, rather than trusting the page to have offered the button at all.
+//
+// Resolves rather than rejects, so the form can tell "the order was refused"
+// apart from "the product could not be reviewed" and keep what the buyer typed
+// either way.
+export const createNewReview =
+  (orderId, productId, rating, comment) => async (dispatch) => {
+    try {
+      dispatch({
+        type: "createNewReviewRequest",
+      });
+
+      const { data } = await axios.put(
+        `${server}/product/create-new-review`,
+        { orderId, productId, rating, comment },
+        { withCredentials: true }
+      );
+
+      dispatch({
+        type: "createNewReviewSuccess",
+        payload: { productId, order: data.order || null },
+      });
+
+      return { ok: true, order: data.order || null, error: null };
+    } catch (error) {
+      const message =
+        error.response?.data?.message || "Could not submit the review";
+
+      dispatch({
+        type: "createNewReviewFailed",
+        payload: message,
+      });
+
+      return { ok: false, order: null, error: message };
+    }
+  };

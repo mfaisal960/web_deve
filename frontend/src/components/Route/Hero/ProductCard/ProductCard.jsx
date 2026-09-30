@@ -4,19 +4,17 @@ import { Link } from "react-router-dom";
 import ProductDetailCart from "../ProductDetailCart/ProductDetailCart";
 import { useDispatch, useSelector } from "react-redux";
 import { addToWishlist, removeFromWishlist } from "../../../../redux/actions/wishlist";
+import { addTocart } from "../../../../redux/actions/cart";
+import { toast } from "react-toastify";
 const ProductCard = ({ data, isEvent = false }) => {
-  const [click,setClick]=useState()
-  const [open,setOpen]=useState()
+  const [open, setOpen] = useState();
   const dispatch = useDispatch();
   const { wishlist } = useSelector((state) => state.wishlist);
   const product = data || {};
-  const productId = product?._id || product?.id || "product";
-  const productName = product.name
-    ? product.name.replace(/\s+/g, "-")
-    : "product";
+  const productId = product?._id || product?.id;
   const isInWishlist = Boolean(
     productId &&
-      wishlist?.some((i) => (i._id || i.id) === productId)
+      wishlist?.some((i) => String(i._id || i.id) === String(productId))
   );
 
   const addToWishlistHandler = (data) => {
@@ -39,11 +37,16 @@ const ProductCard = ({ data, isEvent = false }) => {
 
   const detailUrl = `/product/${productId}${isEvent ? "?isEvent=true" : ""}`;
 
+  const handleAddToCart = () => {
+    dispatch(addTocart({ ...product, qty: 1 }));
+    toast.success("Item added to cart successfully!");
+  };
+
   return (
     <div className="w-full min-h-[370px] bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 p-4 relative cursor-pointer border border-gray-100">
       {/* Product Image */}
       <Link to={detailUrl}>
-        <div className="w-full h-[190px] bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden mb-4">
+        <div className="relative w-full h-[190px] bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden mb-4">
           <img
             src={imageSrc}
             alt={product.name || "product"}
@@ -111,9 +114,10 @@ const ProductCard = ({ data, isEvent = false }) => {
             title="Quick view"/>
             <AiOutlineShoppingCart className="cursor-pointer absolute right-2 top-24"
             size={22}
-            onClick={()=>setClick(!click)}
+            onClick={handleAddToCart}
             color="#444"
-            title="Add to cart"/>
+            title="Add to cart" />
+
             {
               open?(
                 <ProductDetailCart setOpen={setOpen} data={product}/>

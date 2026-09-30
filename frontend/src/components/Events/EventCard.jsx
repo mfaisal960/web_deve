@@ -15,14 +15,23 @@ const EventCard = ({ active, data }) => {
     "https://dummyimage.com/800x600/f3f4f6/6b7280?text=Event+Image";
 
   const addToCartHandler = (product) => {
-    const isItemExists = cart?.find((item) => item._id === product._id);
+    const isItemExists = cart?.some(
+      (item) => String(item._id || item.id) === String(product._id || product.id)
+    );
 
     if (isItemExists) {
       toast.error("Item already in cart!");
       return;
     }
 
-    if (product.stock < 1) {
+    // A listing with no stock recorded is unknown, not empty.
+    const hasStock =
+      product.stock !== undefined &&
+      product.stock !== null &&
+      product.stock !== "";
+    const stock = Number(product.stock);
+
+    if (hasStock && Number.isFinite(stock) && stock < 1) {
       toast.error("Product stock limited!");
       return;
     }

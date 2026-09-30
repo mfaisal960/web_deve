@@ -12,9 +12,46 @@ const ShopLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loginIssue, setLoginIssue] = useState("");
+  const [resendStatus, setResendStatus] = useState("");
+  const [resendUrl, setResendUrl] = useState("");
+  const [resending, setResending] = useState(false);
+
+  const handleResend = async () => {
+    if (resending || !email.trim()) {
+      return;
+    }
+
+    setResending(true);
+    setResendUrl("");
+
+    try {
+      const res = await axios.post(
+        `${server}/shop/resend-activation`,
+        { email: email.trim().toLowerCase() },
+        { withCredentials: true }
+      );
+
+      setResendStatus(res.data.message);
+      // Only present in development builds of the API.
+      setResendUrl(res.data.activationUrl || "");
+      toast.success("Activation email sent again");
+    } catch (err) {
+      const message =
+        err?.response?.data?.message || "Could not resend the activation email";
+      setResendStatus(message);
+      toast.error(message);
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    setErrorMessage("");
+    setLoginIssue("");
 
     await axios
       .post(
@@ -27,13 +64,29 @@ const ShopLogin = () => {
           withCredentials: true,
         }
       )
-      .then((res) => {
+      .then(() => {
         toast.success("Login Success!");
         navigate("/dashboard");
         window.location.reload(true);
       })
       .catch((err) => {
-        toast.error(err.response?.data?.message || "Something went wrong");
+        const message =
+          err?.response?.data?.message || "Something went wrong";
+
+        toast.error(message);
+
+        // A shop account only exists after the shop was created and the emailed
+        // activation link was opened, so point the seller at that step instead
+        // of leaving them with a bare 400.
+        if (err?.response?.status === 400) {
+          setErrorMessage(message);
+          setLoginIssue(
+            /not activated/i.test(message) ? "not-activated" : "not-found"
+          );
+        } else if (err?.response?.status === 404) {
+          setErrorMessage(message);
+          setLoginIssue("not-found");
+        }
       });
   };
 
@@ -154,6 +207,64 @@ const ShopLogin = () => {
             >
               Login to Shop
             </button>
+
+            {/* Inline hint: why a 400 happens and what to do next */}
+            {errorMessage && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900">
+                  {errorMessage}
+                </p>
+
+                {loginIssue === "not-activated" ? (
+                  <>
+                    <p className="mt-2 text-sm text-amber-800">
+                      The activation email can land in spam, or be delayed. Send
+                      it again to the address you registered with.
+                    </p>
+
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={resending}
+                        className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {resending ? "Sending..." : "Resend activation email"}
+                      </button>
+                    </div>
+
+                    {resendStatus && (
+                      <p className="mt-3 text-sm text-amber-900">
+                        {resendStatus}
+                      </p>
+                    )}
+
+                    {resendUrl && (
+                      <a
+                        href={resendUrl}
+                        className="mt-3 inline-block text-sm font-semibold text-amber-900 underline"
+                      >
+                        Open activation link now (development only)
+                      </a>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-2 text-sm text-amber-800">
+                      No shop is registered with this email yet. Create the shop
+                      first, then open the activation link we email you.
+                    </p>
+
+                    <Link
+                      to="/shop-create"
+                      className="mt-3 inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                    >
+                      Create Shop
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Divider */}
             <div className="relative">

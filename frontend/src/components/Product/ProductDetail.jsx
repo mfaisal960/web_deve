@@ -7,9 +7,9 @@ import {
   AiOutlineShoppingCart,
 } from "react-icons/ai";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { getAllProductsShop } from "../../redux/actions/product";
-import { server, resolveImageUrl } from "../../server";
+import { resolveImageUrl } from "../../server";
 import {
   addToWishlist,
   removeFromWishlist,
@@ -17,19 +17,16 @@ import {
 import { addTocart } from "../../redux/actions/cart";
 import { toast } from "react-toastify";
 import Ratings from "./Ratings";
-import axios from "axios";
 
 const ProductDetails = ({ data }) => {
   const { wishlist } = useSelector((state) => state.wishlist);
   const { cart } = useSelector((state) => state.cart);
-  const { user, isAuthenticated } = useSelector((state) => state.user);
+  const { isAuthenticated } = useSelector((state) => state.user);
   const { products } = useSelector((state) => state.products);
 
   const [count, setCount] = useState(1);
-  const [click, setClick] = useState(false);
   const [select, setSelect] = useState(0);
 
-  const navigate = useNavigate();
   const dispatch = useDispatch();
 
   // Product images fallback
@@ -56,6 +53,11 @@ const ProductDetails = ({ data }) => {
   const shop = data?.shop || {};
   const shopId = shop._id || shop.id;
 
+  // Only a real Mongo shop id can be looked up: the bundled demo products
+  // carry a numeric `shop.id` that exists purely in the local catalogue, so
+  // fetching it always returned an empty list.
+  const shopOwnerId = shop._id;
+
   const shopAvatarUrl =
     resolveImageUrl(shop.avatar?.url || shop.shop_avatar?.url) ||
     "https://dummyimage.com/112x112/e5e7eb/6b7280?text=Shop";
@@ -68,26 +70,25 @@ const ProductDetails = ({ data }) => {
 
   const originalPrice = data?.originalPrice ?? data?.price;
 
-  useEffect(() => {
-    if (shopId) {
-      dispatch(getAllProductsShop(shopId));
-    }
+  // Wishlist membership is derived from the store instead of being mirrored in
+  // local state, so it can never drift out of sync with the wishlist slice.
+  const click = Boolean(
+    wishlist?.some((item) => (item._id || item.id) === productId)
+  );
 
-    if (
-      wishlist?.some(
-        (item) => (item._id || item.id) === productId
-      )
-    ) {
-      setClick(true);
-    } else {
-      setClick(false);
-    }
-  }, [data, wishlist, dispatch, shopId, productId]);
+  const [shownProductId, setShownProductId] = useState(productId);
 
-  useEffect(() => {
+  if (shownProductId !== productId) {
+    setShownProductId(productId);
     setSelect(0);
     setCount(1);
-  }, [data?._id, data?.id]);
+  }
+
+  useEffect(() => {
+    if (shopOwnerId) {
+      dispatch(getAllProductsShop(shopOwnerId));
+    }
+  }, [dispatch, shopOwnerId]);
 
   const incrementCount = () => {
     setCount((prev) => prev + 1);
@@ -99,19 +100,19 @@ const ProductDetails = ({ data }) => {
     }
   };
 
+  // The wishlist is the single source of truth for the heart icon, so these
+  // handlers only dispatch.
   const removeFromWishlistHandler = (product) => {
-    setClick(false);
     dispatch(removeFromWishlist(product));
   };
 
   const addToWishlistHandler = (product) => {
-    setClick(true);
     dispatch(addToWishlist(product));
   };
 
   const addToCartHandler = (id) => {
     const isItemExists = cart?.some(
-      (item) => (item._id || item.id) === id
+      (item) => String(item._id || item.id) === String(id)
     );
 
     if (isItemExists) {
@@ -119,8 +120,17 @@ const ProductDetails = ({ data }) => {
       return;
     }
 
-    if (data.stock < 1) {
-      toast.error("Product stock limited!");
+    // A listing with no stock recorded is unknown, not empty. Only a known
+    // stock below the requested quantity is a real refusal.
+    const hasStock = data.stock !== undefined && data.stock !== null && data.stock !== "";
+    const stock = Number(data.stock);
+
+    if (hasStock && Number.isFinite(stock) && stock < count) {
+      toast.error(
+        stock < 1
+          ? "Product stock limited!"
+          : `Only ${stock} left in stock.`
+      );
       return;
     }
 
@@ -153,37 +163,16 @@ const ProductDetails = ({ data }) => {
   const avg = totalRatings / totalReviewsLength || 0;
   const averageRating = avg.toFixed(2);
 
-  const handleMessageSubmit = async () => {
+  // Seller messaging is not implemented anywhere in this project: there is no
+  // /conversation/* route and no /inbox page, so the previous request could only
+  // ever answer 404 and then navigate to a route that does not exist.
+  const handleMessageSubmit = () => {
     if (!isAuthenticated) {
-      toast.error("Please login to create a conversation");
+      toast.error("Please login to contact the seller");
       return;
     }
 
-    if (!shopId) {
-      toast.error("Seller information is unavailable for this product.");
-      return;
-    }
-
-    const groupTitle = productId + user._id;
-    const userId = user._id;
-    const sellerId = shopId;
-
-    try {
-      const res = await axios.post(
-        `${server}/conversation/create-new-conversation`,
-        {
-          groupTitle,
-          userId,
-          sellerId,
-        }
-      );
-
-      navigate(`/inbox?${res.data.conversation._id}`);
-    } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "Something went wrong."
-      );
-    }
+    toast.info("Seller messaging is coming soon.");
   };
 
   return (
@@ -329,7 +318,7 @@ const ProductDetails = ({ data }) => {
               <button
                 type="button"
                 onClick={() => addToCartHandler(productId)}
-                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-6 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-gray-800 hover:shadow-lg active:scale-[0.99]"
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl px-6 text-sm font-semibold text-white shadow-sm transition-all duration-200 bg-gray-900 hover:bg-gray-800 hover:shadow-lg active:scale-[0.99]"
               >
                 Add to Cart
                 <AiOutlineShoppingCart className="text-lg" />
@@ -373,6 +362,7 @@ const ProductDetails = ({ data }) => {
                   <button
                     type="button"
                     onClick={handleMessageSubmit}
+                    title="Seller messaging is not available yet"
                     className="flex h-11 items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800 hover:shadow-md"
                   >
                     Send Message
