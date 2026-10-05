@@ -42,6 +42,9 @@ const StarRatingInput = ({ value, onChange, disabled = false, label }) => (
 // The form is a modal rather than an inline row because a comment box and a star
 // picker do not fit beside a price, and the order items list is a table-like
 // stack where an expanding row would reflow everything below it.
+//
+// Write-only: a line that already carries a review is shown as settled on the
+// order page and never opens this form, so there is nothing to edit here.
 const ReviewFormModal = ({
   productId,
   productName,

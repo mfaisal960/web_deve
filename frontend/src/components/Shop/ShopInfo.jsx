@@ -5,14 +5,14 @@ import { Link, useParams } from "react-router-dom";
 import { server } from "../../server";
 import Loader from "../Login/Layout/Loader";
 import { useDispatch, useSelector } from "react-redux";
-import { getAllProductsShop } from "../../redux/actions/product";
+import { getAllProductsShop, getSellerStats } from "../../redux/actions/product";
 import { productData as demoProducts } from "../../static/data";
 
 const ShopInfo = ({ isOwner, initialShop }) => {
   const [data, setData] = useState(initialShop || {});
   const [loadedShopId, setLoadedShopId] = useState(null);
 
-  const { products } = useSelector((state) => state.products);
+  const { products, sellerStats } = useSelector((state) => state.products);
   const { id } = useParams();
   const dispatch = useDispatch();
   const isDatabaseId = /^[a-f\d]{24}$/i.test(id || "");
@@ -23,6 +23,7 @@ const ShopInfo = ({ isOwner, initialShop }) => {
           String(product.shop?._id || product.shop?.id || product.shopId) ===
           String(id)
       );
+
 
   // The loader is derived from which shop has been fetched, so no state has to
   // be set synchronously when the effect starts.
@@ -79,27 +80,30 @@ const ShopInfo = ({ isOwner, initialShop }) => {
     }
   };
 
-  const totalReviewsLength =
-    shopProducts.reduce(
-      (acc, product) => acc + (product.reviews?.length || 0),
-      0
-    ) || 0;
+  // The shop's reviews, not the product documents' `reviews` arrays: those are
+  // only written for a product that has a Mongo `_id`, and the bundled demo
+  // catalogue has none, so totalling them left this panel reading "0 reviews"
+  // for shops that had been reviewed. Grouping the demo products by shop id is
+  // kept for the product count only, which the catalogue really is the authority
+  // for.
+  useEffect(() => {
+    if (!id) {
+      return;
+    }
 
-  const totalRatings =
-    shopProducts.reduce(
-      (acc, product) =>
-        acc +
-        (product.reviews || []).reduce(
-          (sum, review) => sum + review.rating,
-          0
-        ),
-      0
-    ) || 0;
+    dispatch(getSellerStats(id));
+  }, [dispatch, id]);
 
-  const averageRating =
-    totalReviewsLength > 0
-      ? (totalRatings / totalReviewsLength).toFixed(1)
-      : "0.0";
+  // The stats only describe the shop they were fetched for, and the panel is
+  // rendered from the `id` in the URL, which is the shop being asked about.
+  const hasSellerStats = Boolean(id) && sellerStats?.shopId === String(id);
+
+  const totalReviewsLength = hasSellerStats ? sellerStats.totalReviews : 0;
+
+  const averageRating = (
+    hasSellerStats ? sellerStats.averageRating : 0
+  ).toFixed(1);
+
 
   return (
     <>

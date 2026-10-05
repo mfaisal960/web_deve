@@ -14,6 +14,7 @@ import { getUserOrderById, updateUserOrderStatus } from "../../redux/actions/ord
 import { createNewReview } from "../../redux/actions/product";
 import OrderStatusButton from "../Order/OrderStatusButton";
 import ReviewFormModal from "../Order/ReviewFormModal";
+import Ratings from "../Product/Ratings";
 import {
   ORDER_STATUSES,
   REFUND_STATUSES,
@@ -143,6 +144,11 @@ const UserOrderDetails = () => {
     // The modal stays open on a refusal so the typed comment is not lost.
     toast.error(result?.error || "Could not submit the review");
   };
+
+  // The line the form is open for. Held in one place because it is the only
+  // thing that decides whether the modal is mounted.
+  const openReviewForm = (productId, name) =>
+    setReviewingItem({ productId, name });
 
   if (loading) {
     return <Loader />;
@@ -284,6 +290,12 @@ const UserOrderDetails = () => {
                 // line with none of them cannot be reviewed, so no button.
                 const productId = item._id ?? item.productId ?? item.id ?? null;
 
+                // The review lives on the line the server wrote it to, so it comes
+                // back with the order. Either this or `isReviewed` means the line
+                // has been reviewed, so neither a button nor a second submission
+                // is offered for it again.
+                const savedReview = item.review || null;
+
                 return (
                 <div
                   key={item._id || item.productId || index}
@@ -309,19 +321,35 @@ const UserOrderDetails = () => {
                     <p className="mt-1 text-xs text-gray-500">
                       ${getItemPrice(item)} × {getItemQty(item)}
                     </p>
+
+                    {/* The buyer's own review, shown on the line it belongs to so
+                        a review that was saved but never surfaced anywhere else
+                        is still readable. */}
+                    {savedReview && (
+                      <div className="mt-2 rounded-lg bg-amber-50/70 p-2.5">
+                        <Ratings rating={savedReview.rating} />
+
+                        {savedReview.comment && (
+                          <p className="mt-1.5 text-xs leading-relaxed text-gray-600">
+                            {savedReview.comment}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <p className="flex-shrink-0 text-sm font-semibold text-gray-900">
                     ${(getItemPrice(item) * getItemQty(item)).toFixed(2)}
                   </p>
 
-                  {/* Only on a delivered order, and only while the item has not
-                      been reviewed. A reviewed line shows a settled label
-                      instead of a button, so the same review cannot be sent
-                      twice from this page. */}
+                  {/* Only on a delivered order, and only while the line carries
+                      no review yet. A review is one per purchase, so a line that
+                      has one shows a settled label instead of a button: the buyer
+                      has already said what they thought of the item, and a second
+                      button would only re-send the same review. */}
                   {isDelivered && productId != null && (
                     <div className="w-full sm:w-auto">
-                      {item.isReviewed ? (
+                      {savedReview || item.isReviewed ? (
                         <p className="flex items-center justify-end gap-1.5 text-xs font-semibold text-green-600">
                           <AiOutlineCheckCircle size={14} />
                           Reviewed
@@ -329,7 +357,7 @@ const UserOrderDetails = () => {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setReviewingItem({ productId, name: item.name })}
+                          onClick={() => openReviewForm(productId, item.name)}
                           className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[#e94560] px-3 py-2 text-xs font-semibold text-[#e94560] transition-colors hover:bg-[#fce1e6] sm:w-auto"
                         >
                           <AiOutlineStar size={14} />

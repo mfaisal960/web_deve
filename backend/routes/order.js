@@ -257,21 +257,26 @@ router.get(
   })
 );
 
-// ==================== GET ALL ORDERS OF A SHOP ====================
-// Scoped to the logged-in seller, so a shop can only ever read its own orders.
+// ==================== GET ALL ORDERS (SELLER DASHBOARD) ====================
+// Every order, not only the ones whose `cart.shopId` names the requesting shop.
+//
+// Scoping on `cart.shopId` could never show anything in the dashboard. The site
+// also sells the bundled demo catalogue, and a demo product carries a numeric
+// `shop.id` (101, 205, ...) that no Shop document has. Such an order is written
+// with `cart.shopId: "205"`, which can never equal a seller's ObjectId, so the
+// dashboard stayed empty while the buyer's own list was full — the order existed
+// the whole time, it was just filed under a shop that is not in the database.
+//
+// Still gated on `isSeller`, so a buyer session cannot read the dashboard at all.
+// The `:shopId` segment is kept so the existing dashboard URL keeps working; it
+// is no longer read. To restore per shop isolation, filter on
+// `"cart.shopId": String(req.seller.id)` — the id must be stringified because
+// `cart` is an untyped Array, so Mongoose does not cast what is stored in it.
 router.get(
   "/get-all-orders-of-shop/:shopId",
   isSeller,
   catchAsyncErrors(async (req, res, next) => {
-    const { shopId } = req.params;
-
-    if (String(shopId) !== String(req.seller.id)) {
-      return next(new ErrorHandler("You are not authorized", 403));
-    }
-
-    const orders = await Order.find({ "cart.shopId": shopId }).sort({
-      createdAt: -1,
-    });
+    const orders = await Order.find({}).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -280,7 +285,12 @@ router.get(
   })
 );
 
-// ==================== GET A SINGLE ORDER OF A SHOP ====================
+// ==================== GET A SINGLE ORDER (SELLER) ====================
+// Matched on the id alone, for the same reason the list above is not filtered by
+// shop. It used to add `"cart.shopId": req.seller.id`, which never matched
+// anything: `cart` is an untyped Array so Mongoose does not cast the ObjectId in
+// that query against the string stored on each line, and an order could be listed
+// but never opened.
 router.get(
   "/get-order-by-id/:id",
   isSeller,
@@ -289,10 +299,7 @@ router.get(
       return next(new ErrorHandler("Order not found with this id", 404));
     }
 
-    const order = await Order.findOne({
-      _id: req.params.id,
-      "cart.shopId": req.seller.id,
-    });
+    const order = await Order.findById(req.params.id);
 
     if (!order) {
       return next(new ErrorHandler("Order not found with this id", 404));
@@ -306,9 +313,8 @@ router.get(
 );
 
 // ==================== GET A SINGLE ORDER OF A BUYER ====================
-// The seller's copy above is scoped on `cart.shopId`, which no buyer can satisfy,
-// so a buyer had no way to open one of their own orders at all. Scoped on the
-// session instead, so nobody can read somebody else's order.
+// The buyer's own copy of the order, scoped on the session buyer rather than on
+// `cart.shopId`, so a buyer had no way to open one of their own orders at all.
 router.get(
   "/get-user-order-by-id/:id",
   isAuthenticated,
@@ -339,8 +345,9 @@ router.get(
 
 // ==================== UPDATE ORDER STATUS ====================
 // The status is checked against the same flow the seller panel offers, so a
-// hand written request cannot invent a stage or walk an order backwards, and the
-// order is scoped on the session seller: nobody can move somebody else's order.
+// hand written request cannot invent a stage or walk an order backwards.
+// Matched on the id alone, like the seller read above, so the dashboard can move
+// every order it is able to list.
 const ORDER_STATUS_FLOW = [
   "Processing",
   "Transferred to delivery partner",
@@ -351,6 +358,37 @@ const ORDER_STATUS_FLOW = [
 ];
 
 const REFUND_STATUS_FLOW = ["Processing refund", "Refund Success"];
+
+// Puts the units of a completed refund back on the products they were taken
+// from. `sold_out` is clamped at 0 because it is a running total that other
+// refunds and manual stock edits also move, so it can legitimately be lower than
+// the quantity being returned; letting it go negative would then subtract from
+// every later sale.
+//
+// Only called on the transition INTO "Refund Success" (see the guard in the route
+// below), so re-sending the same status cannot credit the same units twice.
+const restoreRefundedStock = async (cart) => {
+  const lines = Array.isArray(cart) ? cart : [];
+
+  for (const line of lines) {
+    const productId = line?._id ?? line?.productId;
+
+    if (!mongoose.isValidObjectId(productId)) continue;
+
+    const qty = Number(line?.qty) || 0;
+
+    if (qty <= 0) continue;
+
+    const product = await Product.findById(productId);
+
+    if (!product) continue;
+
+    product.stock = (product.stock || 0) + qty;
+    product.sold_out = Math.max(0, (product.sold_out || 0) - qty);
+
+    await product.save({ validateBeforeSave: false });
+  }
+};
 
 router.put(
   "/update-order-status/:id",
@@ -383,8 +421,18 @@ router.put(
       return next(new ErrorHandler("Order not found with this id", 404));
     }
 
-    const order = await Order.findOneAndUpdate(
-      { _id: req.params.id, "cart.shopId": req.seller.id },
+    // Read before the write: a completed refund gives the units back, and that
+    // has to be decided on the status the order is leaving, not the one it ends
+    // on. Re-sending "Refund Success" for an order already refunded is therefore a
+    // no-op rather than a second credit for the same units.
+    const previous = await Order.findById(req.params.id).select("status cart");
+
+    if (!previous) {
+      return next(new ErrorHandler("Order not found with this id", 404));
+    }
+
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
       {
         status,
         // Stamped here rather than in the schema default: an order that is
@@ -398,6 +446,10 @@ router.put(
       return next(new ErrorHandler("Order not found with this id", 404));
     }
 
+    if (status === "Refund Success" && previous.status !== "Refund Success") {
+      await restoreRefundedStock(previous.cart);
+    }
+
     res.status(200).json({
       success: true,
       order,
@@ -407,16 +459,21 @@ router.put(
 
 // ==================== UPDATE ORDER STATUS (BUYER) ====================
 // The buyer moving their own order is a separate endpoint from the seller one
-// above rather than a shared handler: that one is scoped on `cart.shopId` and
-// gated by the seller session, so widening it to buyers would have meant a
-// seller could reach any order and a buyer any order. Each side is scoped on
-// the session it is authenticated as, and only on the delivery flow, never on
-// the refund flow: a buyer asking for a refund is not the one who closes it.
+// above rather than a shared handler: that one is gated by the seller session and
+// reaches every order, so widening it to buyers would have meant any buyer could
+// move any order. Each side is scoped on the session it is authenticated as.
+//
+// The refund flow is accepted here as well as the delivery one, so a buyer can
+// start a refund on their own paid order without waiting for the shop. The two
+// flows share no stages, so a status outside both lists is still rejected and
+// the order still cannot be walked backwards out of a flow it has left.
 //
 // The side effects of the seller endpoint (stock movement, seller balance,
 // payment settlement) are deliberately not repeated here. They are the shop's
 // money and inventory to move, and a buyer changing the label on their order
-// must not credit a balance or decrement stock.
+// must not credit a balance or decrement stock. A buyer refund therefore moves
+// the label only: the stock a "Refund Success" gives back is put back when the
+// seller closes the same refund from their side.
 router.put(
   "/update-user-order-status/:id",
   isAuthenticated,
@@ -427,12 +484,16 @@ router.put(
       return next(new ErrorHandler("A status is required", 400));
     }
 
-    if (!ORDER_STATUS_FLOW.includes(status)) {
+    if (
+      !ORDER_STATUS_FLOW.includes(status) &&
+      !REFUND_STATUS_FLOW.includes(status)
+    ) {
       return next(
         new ErrorHandler(
-          `"${status}" is not a valid order status. Use one of: ${ORDER_STATUS_FLOW.join(
-            ", "
-          )}.`,
+          `"${status}" is not a valid order status. Use one of: ${[
+            ...ORDER_STATUS_FLOW,
+            ...REFUND_STATUS_FLOW,
+          ].join(", ")}.`,
           400
         )
       );

@@ -1,5 +1,6 @@
 import axios from "axios";
 import { server } from "../../server";
+import { getSoldCounts } from "./product";
 
 const errorMessage = (error, fallback) =>
   error?.response?.data?.message || error?.message || fallback;
@@ -13,7 +14,7 @@ const errorMessage = (error, fallback) =>
 // Resolves rather than rejects on failure, because the caller still has to
 // distinguish "the order was refused" from "part of the cart was unorderable"
 // (reported through `unorderableItems`) to decide what to tell the buyer.
-export const createOrder = (order) => async () => {
+export const createOrder = (order) => async (dispatch) => {
   try {
     const { data } = await axios.post(`${server}/order/create-order`, order, {
       headers: { "Content-Type": "application/json" },
@@ -21,6 +22,14 @@ export const createOrder = (order) => async () => {
       // has to be sent explicitly for authenticated endpoints.
       withCredentials: true,
     });
+
+    // The "N sold" number is an aggregate over the orders, so the purchase that
+    // just changed it is not reflected until they are read again. Refetched
+    // here rather than left to the next page load, otherwise a buyer who goes
+    // straight back to the shop sees the count they just moved not having moved.
+    // Not awaited: the caller only needs the order result, and a failed refetch
+    // should not turn a placed order into a reported failure.
+    dispatch(getSoldCounts());
 
     return {
       ok: true,
@@ -62,8 +71,11 @@ export const getAllOrdersOfUser = (userId) => async (dispatch) => {
   }
 };
 
+// The seller dashboard's list. Writes `shopOrders` rather than `orders` so it
+// cannot overwrite the buyer's list, or be overwritten by it, when both are read
+// in the same session.
 export const getAllOrdersOfShop = (shopId) => async (dispatch) => {
-  dispatch({ type: "OrderRequest" });
+  dispatch({ type: "ShopOrdersRequest" });
 
   try {
     const { data } = await axios.get(
@@ -74,12 +86,12 @@ export const getAllOrdersOfShop = (shopId) => async (dispatch) => {
     );
 
     dispatch({
-      type: "OrderSuccess",
+      type: "ShopOrdersSuccess",
       payload: data.orders || [],
     });
   } catch (error) {
     dispatch({
-      type: "OrderFail",
+      type: "ShopOrdersFail",
       payload:
         error.response?.data?.message || "Failed to load shop orders",
     });
@@ -149,6 +161,14 @@ export const updateOrderStatus = (orderId, status) => async (dispatch) => {
       payload: { order },
     });
 
+    // "Refund Success" takes the units back out of the sold count, which is
+    // read by aggregating the orders, so the aggregate has to be read again.
+    // Only this status changes it: the rest of the flow is a stage the sale has
+    // already passed through.
+    if (status === "Refund Success") {
+      dispatch(getSoldCounts());
+    }
+
     return { ok: true, order, error: null };
   } catch (error) {
     return {
@@ -158,6 +178,13 @@ export const updateOrderStatus = (orderId, status) => async (dispatch) => {
     };
   }
 };
+
+// The seller closing a refund out. It is `updateOrderStatus` under another name
+// rather than a second endpoint: both sides of the refund are the same move, and
+// the server restores the stock on the transition, so there is nothing extra for
+// the caller to do beyond naming the stage it is approving.
+export const approveRefund = (orderId) => (dispatch) =>
+  dispatch(updateOrderStatus(orderId, "Refund Success"));
 
 // The buyer's own copy of the same move, against the endpoint scoped on the
 // session buyer. Separate from the seller action because they are separate

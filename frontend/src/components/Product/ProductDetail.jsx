@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   AiFillHeart,
   AiOutlineHeart,
@@ -8,8 +8,9 @@ import {
 } from "react-icons/ai";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import { getAllProductsShop } from "../../redux/actions/product";
+import { getProductReviews, getSellerStats } from "../../redux/actions/product";
 import { resolveImageUrl } from "../../server";
+import { getShopId, mergeCatalog } from "../../utils/catalog";
 import {
   addToWishlist,
   removeFromWishlist,
@@ -22,7 +23,16 @@ const ProductDetails = ({ data }) => {
   const { wishlist } = useSelector((state) => state.wishlist);
   const { cart } = useSelector((state) => state.cart);
   const { isAuthenticated } = useSelector((state) => state.user);
-  const { products } = useSelector((state) => state.products);
+  const {
+    allProducts,
+    soldCounts,
+    sellerStats,
+    productReviews,
+    reviewsProductId,
+    productReviewsTotal,
+    productAverageRating,
+    productReviewsLoading,
+  } = useSelector((state) => state.products);
 
   const [count, setCount] = useState(1);
   const [select, setSelect] = useState(0);
@@ -53,10 +63,12 @@ const ProductDetails = ({ data }) => {
   const shop = data?.shop || {};
   const shopId = shop._id || shop.id;
 
-  // Only a real Mongo shop id can be looked up: the bundled demo products
-  // carry a numeric `shop.id` that exists purely in the local catalogue, so
-  // fetching it always returned an empty list.
-  const shopOwnerId = shop._id;
+  // The shop this product belongs to, as the key the server groups reviews by.
+  // Both halves of the catalogue resolve: a real shop arrives as a Mongo `_id`
+  // and a bundled demo one as a numeric `shop.id`, which is still enough because
+  // that number is what gets stamped onto the order line its reviews are
+  // written to.
+  const shopKey = shopId != null ? String(shopId) : null;
 
   const shopAvatarUrl =
     resolveImageUrl(shop.avatar?.url || shop.shop_avatar?.url) ||
@@ -76,6 +88,71 @@ const ProductDetails = ({ data }) => {
     wishlist?.some((item) => (item._id || item.id) === productId)
   );
 
+  // The fetched list is only usable once it belongs to this product. Comparing
+  // the ids the reducer stamped the list with is what stops the previous
+  // product's reviews showing on the next one during the fetch.
+  const hasFetchedReviews =
+    reviewsProductId != null && String(reviewsProductId) === String(productId);
+
+  // Falls back to the reviews embedded on the product itself, which is all a
+  // real catalogue product holds before anyone has reviewed it again.
+  const reviews = hasFetchedReviews
+    ? productReviews || []
+    : data?.reviews || [];
+
+  const reviewsTotal = hasFetchedReviews
+    ? productReviewsTotal ?? reviews.length
+    : reviews.length;
+
+  // The server's average is used when the list came from it, because it is
+  // counted there after the one-review-per-person dedupe; the local reduction is
+  // only for the fallback list, which has not been through that.
+  const reviewsRating = hasFetchedReviews
+    ? Number(productAverageRating).toFixed(1)
+    : reviews.length > 0
+      ? (
+          reviews.reduce(
+            (sum, review) => sum + (Number(review?.rating) || 0),
+            0
+          ) / reviews.length
+        ).toFixed(1)
+      : null;
+
+  // Seller stats only describe the shop they were fetched for, and one product
+  // page can be looking at a different shop than the last one. The comparison
+  // is what stops a previous shop's totals standing in for this one's while the
+  // new request is in flight.
+  const hasSellerStats = Boolean(shopKey) && sellerStats?.shopId === shopKey;
+
+  // How many products the shop sells, counted from the merged catalogue so the
+  // bundled demo products are included next to the API ones. The server answers
+  // this too, but only for a shop that owns Product documents; for a demo shop it
+  // reports "unknown" rather than 0, because only this copy of the catalogue
+  // knows what that shop sells.
+  const shopProductCount = useMemo(() => {
+    if (!shopKey) return 0;
+
+    return mergeCatalog(allProducts, soldCounts).filter(
+      (item) => getShopId(item) === shopKey
+    ).length;
+  }, [allProducts, soldCounts, shopKey]);
+
+  const shopTotalProducts =
+    hasSellerStats && sellerStats.totalProducts != null
+      ? sellerStats.totalProducts
+      : shopProductCount;
+
+  // The shop's reviews, not this product's. The product's own count stands in
+  // until the shop's arrives so the panel never shows a hard zero on the way to
+  // the real total, and it is a real number either way.
+  const shopReviewsTotal = hasSellerStats
+    ? sellerStats.totalReviews
+    : reviewsTotal;
+
+  const shopAverageRating = (
+    hasSellerStats ? sellerStats.averageRating : Number(reviewsRating || 0)
+  ).toFixed(1);
+
   const [shownProductId, setShownProductId] = useState(productId);
 
   if (shownProductId !== productId) {
@@ -85,10 +162,17 @@ const ProductDetails = ({ data }) => {
   }
 
   useEffect(() => {
-    if (shopOwnerId) {
-      dispatch(getAllProductsShop(shopOwnerId));
+    if (shopKey) {
+      dispatch(getSellerStats(shopKey));
     }
-  }, [dispatch, shopOwnerId]);
+  }, [dispatch, shopKey]);
+
+  
+  useEffect(() => {
+    if (productId) {
+      dispatch(getProductReviews(productId));
+    }
+  }, [dispatch, productId]);
 
   const incrementCount = () => {
     setCount((prev) => prev + 1);
@@ -143,30 +227,7 @@ const ProductDetails = ({ data }) => {
     toast.success("Item added to cart successfully!");
   };
 
-  const totalReviewsLength =
-    products?.reduce(
-      (acc, product) => acc + (product.reviews?.length || 0),
-      0
-    ) || 0;
-
-  const totalRatings =
-    products?.reduce(
-      (acc, product) =>
-        acc +
-        (product.reviews || []).reduce(
-          (sum, review) => sum + review.rating,
-          0
-        ),
-      0
-    ) || 0;
-
-  const avg = totalRatings / totalReviewsLength || 0;
-  const averageRating = avg.toFixed(2);
-
-  // Seller messaging is not implemented anywhere in this project: there is no
-  // /conversation/* route and no /inbox page, so the previous request could only
-  // ever answer 404 and then navigate to a route that does not exist.
-  const handleMessageSubmit = () => {
+   const handleMessageSubmit = () => {
     if (!isAuthenticated) {
       toast.error("Please login to contact the seller");
       return;
@@ -354,7 +415,7 @@ const ProductDetails = ({ data }) => {
                       </h3>
 
                       <p className="mt-1 text-sm text-gray-500">
-                        ({averageRating}/5) Ratings
+                        ({shopAverageRating}/5) Ratings
                       </p>
                     </div>
                   </Link>
@@ -376,12 +437,16 @@ const ProductDetails = ({ data }) => {
           {/* Product Information */}
           <ProductDetailsInfo
             data={data}
-            products={products}
-            totalReviewsLength={totalReviewsLength}
-            averageRating={averageRating}
             shop={shop}
             shopId={shopId}
             shopAvatarUrl={shopAvatarUrl}
+            shopTotalProducts={shopTotalProducts}
+            shopReviewsTotal={shopReviewsTotal}
+            shopAverageRating={shopAverageRating}
+            reviews={reviews}
+            reviewsTotal={reviewsTotal}
+            reviewsRating={reviewsRating}
+            reviewsLoading={productReviewsLoading && !hasFetchedReviews}
           />
         </div>
       )}
@@ -391,12 +456,16 @@ const ProductDetails = ({ data }) => {
 
 const ProductDetailsInfo = ({
   data,
-  products,
-  totalReviewsLength,
-  averageRating,
   shop,
   shopId,
   shopAvatarUrl,
+  shopTotalProducts,
+  shopReviewsTotal,
+  shopAverageRating,
+  reviews = [],
+  reviewsTotal,
+  reviewsRating,
+  reviewsLoading,
 }) => {
   const [active, setActive] = useState(1);
 
@@ -456,40 +525,83 @@ const ProductDetailsInfo = ({
       )}
 
       {/* Reviews */}
-      {active === 2 && (
+       {active === 2 && (
         <div className="min-h-[300px] p-6 sm:p-8 lg:p-10">
+
+          {/* Summary, read off the list that is actually rendered below so the
+              headline and the entries can never disagree. */}
+          {reviews.length > 0 && (
+            <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl bg-gray-50 px-5 py-4">
+              <div className="flex items-center gap-2">
+                <Ratings rating={reviewsRating} />
+
+                <span className="text-sm font-semibold text-gray-900">
+                  {reviewsRating}
+                </span>
+              </div>
+
+              <span className="text-sm text-gray-500">
+                {reviewsTotal} {reviewsTotal === 1 ? "review" : "reviews"}
+              </span>
+            </div>
+          )}
+
           <div className="space-y-6">
-            {data?.reviews?.map((item, index) => (
+
+            {reviews.map((item, index) => (
               <div
-                key={item?._id || item?.id || index}
+                key={item?._id || item?.updatedAt || index}
                 className="flex gap-4 border-b border-gray-100 pb-6 last:border-0"
               >
                 <img
                   src={
-                    resolveImageUrl(item.user?.avatar?.url) ||
+                    resolveImageUrl(
+                      item?.user?.avatar?.url || item?.user?.avatar
+                    ) ||
                     "https://dummyimage.com/96x96/e5e7eb/6b7280?text=User"
                   }
-                  alt={item.user?.name || "Customer"}
+                  alt={item?.user?.name || "Customer"}
                   className="h-12 w-12 shrink-0 rounded-full object-cover"
                 />
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-3">
                     <h4 className="font-semibold text-gray-900">
-                      {item.user?.name || "Customer"}
+                      {item?.user?.name || "Customer"}
                     </h4>
 
-                    <Ratings rating={data?.ratings} />
+                    {/* The review's own stars, not the product's overall average:
+                        a single review must not be rated by every other one. */}
+                    <Ratings rating={item?.rating} />
+
+                    {item?.createdAt && (
+                      <time
+                        dateTime={String(item.createdAt)}
+                        className="text-xs text-gray-400"
+                      >
+                        {String(item.createdAt).slice(0, 10)}
+                      </time>
+                    )}
                   </div>
 
                   <p className="mt-2 text-sm leading-6 text-gray-600">
-                    {item.comment}
+                    {item?.comment}
                   </p>
                 </div>
               </div>
             ))}
 
-            {(data?.reviews?.length || 0) === 0 && (
+            {/* Nothing is shown as empty until the fetch has come back, so a
+                slow request does not flash "no reviews" on a reviewed product. */}
+            {reviewsLoading && reviews.length === 0 && (
+              <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50">
+                <p className="text-sm font-medium text-gray-500">
+                  Loading reviews...
+                </p>
+              </div>
+            )}
+
+            {!reviewsLoading && reviews.length === 0 && (
               <div className="flex min-h-[220px] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50">
                 <p className="text-sm font-medium text-gray-500">
                   No reviews for this product yet.
@@ -532,7 +644,7 @@ const ProductDetailsInfo = ({
                 </h3>
 
                 <p className="mt-1 text-sm text-gray-500">
-                  ({averageRating}/5) Ratings
+                  ({shopAverageRating}/5) Ratings
                 </p>
               </div>
             </Link>
@@ -564,7 +676,7 @@ const ProductDetailsInfo = ({
                 </span>
 
                 <span className="text-gray-600">
-                  {products?.length || 0}
+                  {shopTotalProducts}
                 </span>
               </div>
 
@@ -574,7 +686,7 @@ const ProductDetailsInfo = ({
                 </span>
 
                 <span className="text-gray-600">
-                  {totalReviewsLength}
+                  {shopReviewsTotal}
                 </span>
               </div>
 

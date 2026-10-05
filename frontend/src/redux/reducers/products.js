@@ -8,6 +8,12 @@ const initialState = {
   // own effect then refetched on remount and looped until React gave up with
   // "Maximum update depth exceeded".
   shopProductsLoading: false,
+  // A shop's stats are only meaningful together with the shop they describe, so
+  // the object carries its own `shopId` rather than sitting loose in the slice
+  // next to a separate id field that could fall out of step with it.
+  sellerStats: null,
+  sellerStatsLoading: false,
+  sellerStatsError: null,
 };
 
 export const productReducer = createReducer(initialState, (builder) => {
@@ -67,6 +73,67 @@ export const productReducer = createReducer(initialState, (builder) => {
     state.error = action.payload;
     })
 
+  // sold counts, keyed by product id
+    .addCase("soldCountsSuccess", (state, action) => {
+    state.soldCounts = action.payload;
+    })
+    // `isLoading` is left alone on purpose: the count is decoration on a card,
+    // so failing to fetch it must not put up a full-page loader or replace the
+    // cards with an error. The seeded numbers simply stay as they are.
+    .addCase("soldCountsFailed", (state, action) => {
+    state.soldCountsError = action.payload;
+    })
+
+  // reviews for the product currently open on the detail page
+  //
+  // `reviewsProductId` records which product the list belongs to. Without it a
+  // page that navigates from one product straight to the next would render the
+  // previous product's reviews for one frame, and the detail page compares the
+  // two ids to decide whether what it is holding is usable.
+    .addCase("productReviewsRequest", (state) => {
+    state.productReviewsLoading = true;
+    })
+    .addCase("productReviewsSuccess", (state, action) => {
+    state.productReviewsLoading = false;
+    state.reviewsProductId = action.payload.productId;
+    state.productReviews = action.payload.reviews;
+    state.productReviewsTotal = action.payload.totalReviews;
+    state.productAverageRating = action.payload.averageRating;
+    state.productReviewsError = null;
+    })
+    // Leaves any previously loaded list alone rather than blanking it: the
+    // detail page falls back to whatever the product itself carries, so a failed
+    // fetch must not turn a page that had reviews into an empty one.
+    .addCase("productReviewsFailed", (state, action) => {
+    state.productReviewsLoading = false;
+    state.productReviewsError = action.payload;
+    })
+
+  // A shop's review total, average and review list
+  //
+  // `shopId` is recorded inside the payload so the pages can tell whether what
+  // they are holding belongs to the shop they are rendering. Without it, a page
+  // that navigates from one shop straight to another would show the first shop's
+  // totals until the second request came back, and a failed request would leave
+  // the wrong shop's numbers on screen permanently.
+    .addCase("sellerStatsRequest", (state) => {
+    state.sellerStatsLoading = true;
+    })
+    .addCase("sellerStatsSuccess", (state, action) => {
+    state.sellerStatsLoading = false;
+    state.sellerStats = action.payload;
+    state.sellerStatsError = null;
+    })
+    // Clears the held stats rather than keeping them: they belong to some other
+    // shop, and a page checking `sellerStats.shopId` would discard them anyway,
+    // so leaving them behind would only invite a future reader to use them
+    // without that check.
+    .addCase("sellerStatsFailed", (state, action) => {
+    state.sellerStatsLoading = false;
+    state.sellerStats = null;
+    state.sellerStatsError = action.payload?.error || null;
+    })
+
   // review a product
   // `reviewSubmitting` is its own flag rather than a reuse of `isLoading`: a
   // review is sent from the order page, and flipping `isLoading` there would
@@ -87,5 +154,7 @@ export const productReducer = createReducer(initialState, (builder) => {
     .addCase("clearErrors", (state) => {
     state.error = null;
     state.reviewError = null;
+    state.productReviewsError = null;
+    state.sellerStatsError = null;
     });
 });

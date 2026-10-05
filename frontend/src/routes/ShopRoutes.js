@@ -6,6 +6,7 @@ import ShopAllEvents from "../pages/Shop/ShopAllEvent.jsx"
 import AllCoupons from "../pages/Shop/ShopAllCoupouns.jsx"
 import ShopAllOrders from "../pages/Shop/ShopAllOrders.jsx"
 import ShopOrderDetails from "../pages/Shop/ShopOrderDetails.jsx"
+import ShopRefunds from "../pages/Shop/ShopRefunds.jsx"
 export {
   ShopDashboardPage,
   ShopCreateProduct,
@@ -15,4 +16,5 @@ export {
   AllCoupons,
   ShopAllOrders,
   ShopOrderDetails,
+  ShopRefunds,
 };

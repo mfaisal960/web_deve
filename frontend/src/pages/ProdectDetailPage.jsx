@@ -9,7 +9,7 @@ import { useSelector } from "react-redux";
 import { mergeCatalog } from "../utils/catalog";
 
 const ProductDetailsPage = () => {
-  const { allProducts, isLoading: productsLoading } = useSelector(
+  const { allProducts, soldCounts, isLoading: productsLoading } = useSelector(
     (state) => state.products
   );
   const { allEvents, loading: eventsLoading } = useSelector(
@@ -18,7 +18,7 @@ const ProductDetailsPage = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const isEvent = searchParams.get("isEvent") === "true";
-  const items = isEvent ? allEvents : mergeCatalog(allProducts);
+  const items = isEvent ? allEvents : mergeCatalog(allProducts, soldCounts);
   const data = items?.find((item) => String(item._id || item.id) === id);
   const isLoading = isEvent ? eventsLoading : productsLoading;
 

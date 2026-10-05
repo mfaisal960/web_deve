@@ -6,10 +6,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { addToWishlist, removeFromWishlist } from "../../../../redux/actions/wishlist";
 import { addTocart } from "../../../../redux/actions/cart";
 import { toast } from "react-toastify";
+import { getSoldCount } from "../../../../utils/catalog";
 const ProductCard = ({ data, isEvent = false }) => {
   const [open, setOpen] = useState();
   const dispatch = useDispatch();
   const { wishlist } = useSelector((state) => state.wishlist);
+  const { soldCounts } = useSelector((state) => state.products);
   const product = data || {};
   const productId = product?._id || product?.id;
   const isInWishlist = Boolean(
@@ -89,7 +91,7 @@ const ProductCard = ({ data, isEvent = false }) => {
               </h4>
             </div>
             <span className="font-[400] text-[17px] text-[#68d284]">
-              {product.sold_out || 0} sold
+              {getSoldCount(product, soldCounts)} sold
             </span>
         </div>
         </Link>

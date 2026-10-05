@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useParams } from "react-router-dom";
-import { getAllProductsShop } from "../../redux/actions/product";
+import { getAllProductsShop, getSellerStats } from "../../redux/actions/product";
 import ProductCard from "../Route/Hero/ProductCard/ProductCard";
 import { productData as demoProducts } from "../../static/data";
 
@@ -19,7 +19,7 @@ const Ratings = ({ rating }) => {
 };
 
 const ShopProfileData = ({ isOwner }) => {
-  const { products } = useSelector((state) => state.products);
+  const { products, sellerStats } = useSelector((state) => state.products);
   const { events } = useSelector((state) => state.events);
 
   const { id } = useParams();
@@ -42,10 +42,19 @@ const ShopProfileData = ({ isOwner }) => {
     if (isDatabaseId) {
       dispatch(getAllProductsShop(id));
     }
+    // Not gated on `isDatabaseId`: the demo shops have no Shop document to read,
+    // but their reviews are just as real and are stored against the same shop id.
+    dispatch(getSellerStats(id));
   }, [dispatch, id, isDatabaseId]);
 
+  // The shop's reviews come from the server rather than from the product
+  // documents' `reviews` arrays. Those are only written for a product that has a
+  // Mongo `_id` — the write is guarded by `mongoose.isValidObjectId` — and the
+  // bundled demo catalogue has none, so this tab was permanently empty even for
+  // shops that had reviews.
   const allReviews =
-    shopProducts.flatMap((product) => product.reviews || []);
+    sellerStats?.shopId === String(id) ? sellerStats.reviews || [] : [];
+
 
   return (
     <div className="w-full bg-white rounded-xl overflow-hidden">

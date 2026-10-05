@@ -5,19 +5,19 @@ import { PAGE_SIZE } from "../../../../static/pagination";
 import { mergeCatalog } from "../../../../utils/catalog";
 
 const FeatureProduct = () => {
-  const { allProducts } = useSelector((state) => state.products);
+  const { allProducts, soldCounts } = useSelector((state) => state.products);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [listSize, setListSize] = useState(0);
 
   const products = useMemo(() => {
-    const items = mergeCatalog(allProducts);
+    const items = mergeCatalog(allProducts, soldCounts);
 
     // Newest shop inventory first. Demo items carry no createdAt, so they keep
     // their bundled order behind the products the shop actually created.
     return items.sort(
       (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
     );
-  }, [allProducts]);
+  }, [allProducts, soldCounts]);
 
   const visibleProducts = useMemo(
     () => products.slice(0, visibleCount),

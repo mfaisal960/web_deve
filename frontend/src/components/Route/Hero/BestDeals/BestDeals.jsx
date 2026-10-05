@@ -6,10 +6,10 @@ import { mergeCatalog } from "../../../../utils/catalog";
 const DISPLAY_COUNT = 15;
 
 const BestDeals = () => {
-  const { allProducts } = useSelector((state) => state.products);
+  const { allProducts, soldCounts } = useSelector((state) => state.products);
 
   const data = useMemo(() => {
-    const catalog = mergeCatalog(allProducts);
+    const catalog = mergeCatalog(allProducts, soldCounts);
 
     // Rank across the whole merged catalogue so real shop products and the
     // bundled demo items compete on the same measure. createdAt only breaks
@@ -21,7 +21,7 @@ const BestDeals = () => {
           new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
       )
       .slice(0, DISPLAY_COUNT);
-  }, [allProducts]);
+  }, [allProducts, soldCounts]);
 
   return (
     <div className="w-full">

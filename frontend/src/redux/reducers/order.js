@@ -3,12 +3,19 @@ import { createReducer } from "@reduxjs/toolkit";
 const initialState = {
   loading: false,
   orders: [],
+  // The seller dashboard reads a different query than the buyer's list, so it
+  // gets its own slot. They used to share `orders` and both wrote it through the
+  // same action, so whichever list fetched last overwrote the other one and a
+  // page could render the wrong side's rows.
+  shopLoading: false,
+  shopOrders: [],
   order: null,
   // The orders created by the checkout that just finished. The confirmation
   // screen reads these to list what was bought; without them it had nothing to
   // show, because the buyer is navigated straight to it after paying.
   lastOrders: [],
   error: null,
+  shopError: null,
 };
 
 export const orderReducer = createReducer(initialState, (builder) => {
@@ -25,6 +32,19 @@ export const orderReducer = createReducer(initialState, (builder) => {
       state.loading = false;
       state.error = action.payload;
       state.orders = [];
+    })
+    .addCase("ShopOrdersRequest", (state) => {
+      state.shopLoading = true;
+    })
+    .addCase("ShopOrdersSuccess", (state, action) => {
+      state.shopLoading = false;
+      state.shopOrders = action.payload;
+      state.shopError = null;
+    })
+    .addCase("ShopOrdersFail", (state, action) => {
+      state.shopLoading = false;
+      state.shopError = action.payload;
+      state.shopOrders = [];
     })
     .addCase("OrdersCreated", (state, action) => {
       state.loading = false;
@@ -52,11 +72,14 @@ export const orderReducer = createReducer(initialState, (builder) => {
         state.order = updated;
       }
 
-      const row = state.orders.find((order) => order._id === updated._id);
+      // Both lists can hold the same order, so both rows are patched.
+      for (const list of [state.orders, state.shopOrders]) {
+        const row = list.find((order) => order._id === updated._id);
 
-      if (row) {
-        row.status = updated.status;
-        row.deliveredAt = updated.deliveredAt;
+        if (row) {
+          row.status = updated.status;
+          row.deliveredAt = updated.deliveredAt;
+        }
       }
 
       const recent = state.lastOrders.find((order) => order._id === updated._id);
@@ -80,10 +103,12 @@ export const orderReducer = createReducer(initialState, (builder) => {
         state.order = updated;
       }
 
-      const row = state.orders.find((order) => order._id === updated._id);
+      for (const list of [state.orders, state.shopOrders]) {
+        const row = list.find((order) => order._id === updated._id);
 
-      if (row) {
-        row.cart = updated.cart;
+        if (row) {
+          row.cart = updated.cart;
+        }
       }
 
       const recent = state.lastOrders.find((order) => order._id === updated._id);

@@ -7,10 +7,15 @@ import { getAllOrdersOfShop } from "../../redux/actions/order";
 import { AiOutlineArrowRight } from "react-icons/ai";
 import Loader from "../Login/Layout/Loader";
 import OrderItemsCell from "../Order/OrderItemsCell";
-import OrderStatusButton from "../Order/OrderStatusButton";
+import { REFUND_STATUSES, isRefundStatus } from "../../utils/orderItems";
 
 const AllOrders = () => {
-  const { orders, loading: isLoading } = useSelector((state) => state.order);
+  // `shopOrders`, not `orders`: the buyer's list is a different query and the two
+  // used to share one slot, so each overwrote the other and this grid could
+  // render the buyer's rows or an empty table.
+  const { shopOrders, shopLoading: isLoading } = useSelector(
+    (state) => state.order
+  );
   const { seller } = useSelector((state) => state.seller);
 
   const dispatch = useDispatch();
@@ -49,17 +54,36 @@ const AllOrders = () => {
       },
     },
     {
-      headerName: "Update Status",
-      minWidth: 300,
-      flex: 1.6,
+      field: "refund",
+      headerName: "Refund",
+      minWidth: 140,
+      flex: 0.7,
       sortable: false,
       filterable: false,
-      renderCell: (params) => (
-        <OrderStatusButton
-          orderId={params.row.id}
-          status={params.row.status}
-        />
-      ),
+      // Only refunds are called out; an order on the normal delivery flow has
+      // nothing to report here, so it gets a dash rather than a second badge
+      // repeating the Status column next to it.
+      renderCell: (params) => {
+        const status = params.row.status;
+
+        if (!isRefundStatus(status)) {
+          return <span className="text-xs text-gray-400">—</span>;
+        }
+
+        const isDone = status === REFUND_STATUSES[1];
+
+        return (
+          <span
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+              isDone
+                ? "bg-green-50 text-green-600"
+                : "bg-amber-50 text-amber-600"
+            }`}
+          >
+            {isDone ? "Refunded" : "Refund Pending"}
+          </span>
+        );
+      },
     },
     {
       field: "items",
@@ -109,8 +133,8 @@ const AllOrders = () => {
 
   const row = [];
 
-  orders &&
-    orders.forEach((item) => {
+  shopOrders &&
+    shopOrders.forEach((item) => {
       row.push({
         id: item._id,
         cart: Array.isArray(item.cart) ? item.cart : [],
@@ -129,6 +153,7 @@ const AllOrders = () => {
           <DataGrid
             rows={row}
             columns={columns}
+            pageSizeOptions={[5, 10, 25, 50, 100]}
             initialState={{
               pagination: {
                 paginationModel: { pageSize: 10, page: 0 },

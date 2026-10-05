@@ -5,13 +5,13 @@ import { server } from './server.js'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Login, Signup ,ActivationPage,HomePage,ProductsPage ,
   BestSellingPage,Event,Faq, ProductDetailsPage,
-  ProfilePage,ShopOrderDetails,UserOrderDetailsPage} from './routes/Routes.js'
+  ProfilePage,ShopOrderDetails,UserOrderDetailsPage,TrackOrderPage} from './routes/Routes.js'
 import { ShopCreateProduct } from './routes/ShopRoutes.js'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Store from './redux/store.js'
 import { loadSeller, loadUser } from './redux/actions/user.js'
-import { getAllProducts } from './redux/actions/product.js'
+import { getAllProducts, getSoldCounts } from './redux/actions/product.js'
 import { getAllEvents } from './redux/actions/event.js'
 import OrderSuccessPage from './pages/OrderSuccessPages.jsx'
 import ProtectedRoute from './routes/ProtectedRoute.js'
@@ -25,6 +25,7 @@ import ShopPreviewPage from './pages/Shop/ShopPreviewPage.jsx'
 import SellerProtectedRoute from './routes/SellerProtectedRoute.jsx'
 import ShopAllProducts from './pages/Shop/ShopAllProducts.jsx'
 import ShopAllOrders from './pages/Shop/ShopAllOrders.jsx'
+import ShopRefunds from './pages/Shop/ShopRefunds.jsx'
 import ShopCreateEvents from './pages/Shop/ShopCreateEvents.jsx'
 import ShopAllEvents from './pages/Shop/ShopAllEvent.jsx'
 import ShopAllCoupouns from './pages/Shop/ShopAllCoupouns.jsx'
@@ -76,6 +77,10 @@ const AppRoutes = () => {
   useEffect(() => {
     Store.dispatch(getAllProducts());
     Store.dispatch(getAllEvents());
+    // Fetched separately from the products because the sold count is an
+    // aggregate over every order rather than a field on any one product, so it
+    // cannot ride along with the product listing.
+    Store.dispatch(getSoldCounts());
   }, []);
 
   useEffect(() => {
@@ -176,7 +181,7 @@ const AppRoutes = () => {
         <Route path="/user/track/order/:id"
           element={
             <ProtectedRoute isAuthenticated={isAuthenticated}>
-              <UserOrderDetailsPage />
+              <TrackOrderPage />
             </ProtectedRoute>
           } />
    
@@ -236,6 +241,14 @@ const AppRoutes = () => {
           }
         />
            <Route
+          path="/dashboard-refunds"
+          element={
+            <SellerProtectedRoute>
+              <ShopRefunds />
+            </SellerProtectedRoute>
+          }
+        />
+           <Route
           path="/order/:id"
           element={
             <SellerProtectedRoute>
@@ -272,6 +285,14 @@ const AppRoutes = () => {
           element={
             <SellerProtectedRoute>
               <ShopAllCoupouns />
+            </SellerProtectedRoute>
+          }
+        />
+         <Route
+          path="/dashboard-withdraw-money"
+          element={
+            <SellerProtectedRoute>
+              <ShopWithDrawMoneyPage />
             </SellerProtectedRoute>
           }
         />
