@@ -50,6 +50,9 @@ const eventRouter = require("./controller/event");
 const couponRouter = require("./controller/coupounCode");
 const paymentRouter = require("./routes/payment");
 const orderRouter = require("./routes/order");
+const conversationRouter = require("./controller/conversation");
+
+app.use("/api/v2/conversation", conversationRouter);
 app.use("/api/v2/user", userRouter);
 app.use("/api/v2/cart", cartRouter);
 app.use("/api/v2/shop", shopRouter);

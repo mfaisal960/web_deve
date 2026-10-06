@@ -5,8 +5,9 @@ import { server } from './server.js'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Login, Signup ,ActivationPage,HomePage,ProductsPage ,
   BestSellingPage,Event,Faq, ProductDetailsPage,
-  ProfilePage,ShopOrderDetails,UserOrderDetailsPage,TrackOrderPage} from './routes/Routes.js'
-import { ShopCreateProduct } from './routes/ShopRoutes.js'
+  ProfilePage,ShopOrderDetails,UserOrderDetailsPage,
+  TrackOrderPage } from './routes/Routes.js'
+import { ShopCreateProduct, ShopInboxPage, ShopWithDrawMoneyPage } from './routes/ShopRoutes.js'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Store from './redux/store.js'
@@ -293,6 +294,14 @@ const AppRoutes = () => {
           element={
             <SellerProtectedRoute>
               <ShopWithDrawMoneyPage />
+            </SellerProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard-messages"
+          element={
+            <SellerProtectedRoute>
+              <ShopInboxPage />
             </SellerProtectedRoute>
           }
         />
