@@ -7,6 +7,7 @@ const Order = require("../model/order");
 const Shop = require("../model/shop");
 const Cart = require("../model/cart");
 const Product = require("../model/product");
+const User = require("../model/user");
 
 const router = express.Router();
 
@@ -526,6 +527,70 @@ router.put(
       success: true,
       order,
     });
+  })
+);
+
+// ==================== CUSTOMERS OF THIS SHOP (SELLER) ====================
+// Buyers who ordered from this shop, so the dashboard inbox can offer them as
+// someone to start a thread with. A conversation used to be creatable only from
+// the buyer's side, which left the seller with no way to reach out first.
+//
+// Scoped on the cart lines rather than on the shared order list above: those
+// lines carry the stamped string `shopId`, which is exactly what the seller
+// stats pipeline matches on. Demo catalogue lines (numeric shop ids) belong to
+// no real shop and are therefore never offered here.
+router.get(
+  "/get-customers-of-shop",
+  isSeller,
+  catchAsyncErrors(async (req, res, next) => {
+    const sellerId = String(req.seller.id);
+
+    const orders = await Order.find({
+      $or: [
+        { "cart.shopId": sellerId },
+        { "cart.shop._id": sellerId },
+        { "cart.shop.id": sellerId },
+      ],
+    })
+      .select("user createdAt")
+      .lean();
+
+    // `user` is an untyped Object, so ids reach it as ObjectId or as the string
+    // they were written with. Both forms are keyed the same way, otherwise the
+    // same buyer counts twice.
+    const buyers = new Map();
+
+    for (const order of orders) {
+      const id = order?.user?._id;
+
+      if (!id || !mongoose.isValidObjectId(String(id))) continue;
+
+      const key = String(id);
+      const entry = buyers.get(key) || { id: key, orders: 0 };
+
+      entry.orders += 1;
+      buyers.set(key, entry);
+    }
+
+    if (!buyers.size) {
+      return res.status(200).json({ success: true, customers: [] });
+    }
+
+    const users = await User.find({
+      _id: { $in: [...buyers.keys()] },
+    })
+      .select("name email avatar")
+      .lean();
+
+    const customers = users.map((user) => ({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      orders: buyers.get(String(user._id)).orders,
+    }));
+
+    res.status(200).json({ success: true, customers });
   })
 );
 

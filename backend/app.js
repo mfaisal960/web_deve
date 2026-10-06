@@ -51,8 +51,14 @@ const couponRouter = require("./controller/coupounCode");
 const paymentRouter = require("./routes/payment");
 const orderRouter = require("./routes/order");
 const conversationRouter = require("./controller/conversation");
+const messageRouter = require("./controller/messages");
+const shopReviewRouter = require("./controller/shopReview");
 
 app.use("/api/v2/conversation", conversationRouter);
+// Never mounted, so every GET /api/v2/message/... answered 404.
+app.use("/api/v2/message", messageRouter);
+// Ratings a buyer leaves on a shop from inside the chat inbox.
+app.use("/api/v2/shop-review", shopReviewRouter);
 app.use("/api/v2/user", userRouter);
 app.use("/api/v2/cart", cartRouter);
 app.use("/api/v2/shop", shopRouter);

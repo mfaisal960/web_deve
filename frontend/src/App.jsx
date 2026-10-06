@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { Login, Signup ,ActivationPage,HomePage,ProductsPage ,
   BestSellingPage,Event,Faq, ProductDetailsPage,
   ProfilePage,ShopOrderDetails,UserOrderDetailsPage,
-  TrackOrderPage } from './routes/Routes.js'
+  TrackOrderPage, UserInboxPage } from './routes/Routes.js'
 import { ShopCreateProduct, ShopInboxPage, ShopWithDrawMoneyPage } from './routes/ShopRoutes.js'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
@@ -171,6 +171,14 @@ const AppRoutes = () => {
         <Route path="/events" element={<Event/>}/>
          <Route path="/faq" element={<Faq/>}/>
         <Route path="/order/success" element={<OrderSuccessPage/>}/>
+        {/* Destination of "Send Message" on a product page. The conversation id
+            rides along as a query string, so it is always auth-gated. */}
+        <Route path="/inbox"
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <UserInboxPage />
+            </ProtectedRoute>
+          } />
         {/* Both of these are linked from the profile order list but had no route,
             so the arrow buttons silently redirected to the home page. */}
         <Route path="/user/order/:id"

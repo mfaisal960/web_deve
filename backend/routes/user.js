@@ -1,5 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const User = require("../model/user");
 const { upload } = require("../multer");
 const ErrorHandler = require("../utils/ErrorHandler");
@@ -156,6 +157,32 @@ router.get(
     res.status(200).json({
       success: true,
       user: req.user || null,
+    });
+  })
+);
+
+// ==================== GET USER INFORMATION BY ID ====================
+// The seller inbox renders the buyer side of a conversation (name + avatar)
+// by fetching the other member of `members`. This route used to exist only in
+// the never-mounted controller/user.js copy, so every call answered 404.
+// It is public because a signed-in seller resolves a buyer they have no
+// session for, and only the display fields are returned.
+router.get(
+  "/user-info/:id",
+  catchAsyncErrors(async (req, res, next) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    const user = await User.findById(req.params.id).select("name avatar");
+
+    if (!user) {
+      return next(new ErrorHandler("User not found", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      user,
     });
   })
 );

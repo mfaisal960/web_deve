@@ -36,6 +36,23 @@ const removeUser = (io, socketId) => {
 
 const getUser = (userId) => onlineUsers.find((user) => user.userId === userId);
 
+// Held so the HTTP layer can push to a specific user without every route having
+// to reach the io instance. Set once, when the server boots.
+let ioInstance = null;
+
+// Push an event to one user, if they have a socket open. Returns whether it was
+// delivered, so callers can treat delivery as best-effort: a user with no open
+// tab still gets the change on their next request.
+const sendToUser = (userId, event, payload) => {
+  const target = getUser(String(userId));
+
+  if (!ioInstance || !target) return false;
+
+  ioInstance.to(target.socketId).emit(event, payload);
+
+  return true;
+};
+
 const initSocketServer = (httpServer, { corsOrigin } = {}) => {
   const io = new Server(httpServer, {
     cors: {
@@ -45,23 +62,28 @@ const initSocketServer = (httpServer, { corsOrigin } = {}) => {
     },
   });
 
+  ioInstance = io;
+
   io.on("connection", (socket) => {
     socket.on("addUser", (userId) => {
       if (!userId) return;
       addUser(io, userId, socket.id);
     });
 
-    socket.on("sendMessage", ({ senderId, receiverId, text, images }) => {
+    socket.on("sendMessage", ({ senderId, receiverId, text, images, conversationId }) => {
       const receiver = getUser(receiverId);
 
       // The receiver may have no dashboard open. The message is still persisted
       // by POST /message/create-new-message, so dropping it here is safe.
       if (!receiver) return;
 
+      // conversationId travels with the event because a tab can hold several
+      // threads; without it the receiver cannot tell which one this belongs to.
       io.to(receiver.socketId).emit("getMessage", {
         senderId,
         text,
         images,
+        conversationId,
       });
     });
 
@@ -80,5 +102,8 @@ const initSocketServer = (httpServer, { corsOrigin } = {}) => {
 
   return io;
 };
+
+initSocketServer.getIO = () => ioInstance;
+initSocketServer.sendToUser = sendToUser;
 
 module.exports = initSocketServer;

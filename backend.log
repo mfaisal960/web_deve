@@ -1,6 +1,0 @@
-[dotenv@17.3.1] injecting env (14) from backend\config\.env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
-[dotenv@17.3.1] injecting env (0) from backend\config\.env -- tip: ⚙️  write to custom object with { processEnv: myObject }
-Server is running on port 8000
-MongoDB is connected with server: 127.0.0.1
-Mail sent to akram269@gmail.com (id: <31f9a41c-7cf5-bb81-2dba-3e0ab7303089@gmail.com>)
-Mail sent to akram269@gmail.com (id: <48bfa0d2-ad14-ea5a-bbdd-f783c0980d1a@gmail.com>)

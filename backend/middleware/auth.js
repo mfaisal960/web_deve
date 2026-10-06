@@ -81,6 +81,33 @@ exports.isSeller=catchAsyncErrors(async(req,res,next)=>{
     next();
 });
 
+// Same lenience as optionalAuth, but for the shop's own cookie. Needed by
+// endpoints that both sides of a conversation read: the buyer authenticates with
+// `token` and the shop with `seller_token`, so a route that has to serve both
+// cannot pick one of them.
+exports.optionalSellerAuth=catchAsyncErrors(async(req,res,next)=>{
+    const {seller_token}=req.cookies;
+    if(!seller_token){
+        return next();
+    }
+
+    let decoded;
+    try {
+        decoded=jwt.verify(seller_token,process.env.JWT_SECRET_KEY);
+    } catch (error) {
+        res.clearCookie("seller_token");
+        return next();
+    }
+
+    req.seller=await Shop.findById(decoded.id);
+
+    if(!req.seller){
+        res.clearCookie("seller_token");
+    }
+
+    next();
+})
+
 exports.isAdmin=(...roles)=>catchAsyncErrors(async(req,res,next)=>{
     const {token}=req.cookies;
 

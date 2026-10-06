@@ -1,5 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import {
   AiFillHeart,
   AiOutlineHeart,
@@ -7,9 +8,9 @@ import {
   AiOutlineShoppingCart,
 } from "react-icons/ai";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getProductReviews, getSellerStats } from "../../redux/actions/product";
-import { resolveImageUrl } from "../../server";
+import { resolveImageUrl, server } from "../../server";
 import { getShopId, mergeCatalog } from "../../utils/catalog";
 import {
   addToWishlist,
@@ -22,7 +23,7 @@ import Ratings from "./Ratings";
 const ProductDetails = ({ data }) => {
   const { wishlist } = useSelector((state) => state.wishlist);
   const { cart } = useSelector((state) => state.cart);
-  const { isAuthenticated } = useSelector((state) => state.user);
+  const { user, isAuthenticated } = useSelector((state) => state.user);
   const {
     allProducts,
     soldCounts,
@@ -38,6 +39,7 @@ const ProductDetails = ({ data }) => {
   const [select, setSelect] = useState(0);
 
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // Product images fallback
   const productImages = data?.images?.length
@@ -227,13 +229,43 @@ const ProductDetails = ({ data }) => {
     toast.success("Item added to cart successfully!");
   };
 
-   const handleMessageSubmit = () => {
-    if (!isAuthenticated) {
-      toast.error("Please login to contact the seller");
+   
+
+   const handleMessageSubmit = async () => {
+    if (!isAuthenticated || !user?._id) {
+      toast.error("Please login to create a conversation");
       return;
     }
 
-    toast.info("Seller messaging is coming soon.");
+    // A bundled demo product has no real shop behind it, so there is nobody to
+    // write the conversation to. The server would reject it with a 500.
+    const sellerId = data?.shop?._id;
+
+    if (!sellerId) {
+      toast.error("This listing has no shop to message yet.");
+      return;
+    }
+
+    // Both ids are fixed-length Mongo ObjectIds, so plain concatenation is
+    // unambiguous and keeps one thread per product/shop pair.
+    const groupTitle = `${data._id}${user._id}`;
+
+    try {
+      const { data: response } = await axios.post(
+        `${server}/conversation/create-new-conversation`,
+        { groupTitle, userId: user._id, sellerId },
+        { withCredentials: true }
+      );
+
+      navigate(`/inbox?conversationId=${response.conversation._id}`);
+    } catch (error) {
+      // error.response is absent when the request never reached the server
+      // (server down, CORS, offline), so read the message defensively.
+      toast.error(
+        error.response?.data?.message ||
+          "Could not start the conversation. Please try again."
+      );
+    }
   };
 
   return (
@@ -423,7 +455,7 @@ const ProductDetails = ({ data }) => {
                   <button
                     type="button"
                     onClick={handleMessageSubmit}
-                    title="Seller messaging is not available yet"
+                    title="Message this shop"
                     className="flex h-11 items-center justify-center gap-2 rounded-xl bg-gray-900 px-5 text-sm font-semibold text-white transition hover:bg-gray-800 hover:shadow-md"
                   >
                     Send Message
